@@ -1,0 +1,121 @@
+# ==============================================================================
+# Memora AI — Root .gitignore
+# Privacy-first, Zero-Hallucination Enterprise Meeting Intelligence Platform
+# ==============================================================================
+
+# ── Python & Bytecode ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ── Virtual Environments ────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+backend/venv/
+backend/.venv/
+env.bak/
+venv.bak/
+
+# ── Testing & Code Quality ──────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.mypy_cache/
+.ruff_cache/
+cover/
+
+# ── Node & Frontend (Vite + React) ──────────────────────────────────────────
+node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+frontend/.vite/
+.vite/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+.eslintcache
+
+# ── Database WAL, Journals & Locks ──────────────────────────────────────────
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite-journal
+*.sqlite3-journal
+backend/data/*.db-journal
+backend/data/*.db-wal
+backend/data/*.db-shm
+
+# ── Temporary Uploads & Dynamic Meeting Audio ─────────────────────────────────
+# Preserve .gitkeep and speaker enrollment samples
+backend/data/uploads/*
+!backend/data/uploads/.gitkeep
+
+# ── Local Environment & Secret Overrides ────────────────────────────────────
+.env.local
+.env.*.local
+frontend/.env.local
+frontend/.env.*.local
+*.local
+
+# ── Operating System Artifacts ───────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── IDEs & Editors ───────────────────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+.idea/
+*.sublime-project
+*.sublime-workspace
+*.swp
+*.swo
+*~
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# ── Temporary Logs & Scratch ─────────────────────────────────────────────────
+logs/
+*.log
+tmp/
+temp/
+scratch/

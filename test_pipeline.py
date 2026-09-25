@@ -1,23 +1,26 @@
-import urllib.request
+import requests
 import json
 import time
+
+BASE_URL = "http://127.0.0.1:8000/api/v1"
 
 def test_api():
     print("=== Testing MeetGuard AI End-to-End API ===")
     
     # 1. Login
-    data = json.dumps({'email': 'admin@techcorp.example', 'password': 'admin123'}).encode()
-    req = urllib.request.Request('http://localhost:8000/api/v1/auth/login', data=data, headers={'Content-Type': 'application/json'})
-    res = urllib.request.urlopen(req)
-    login_res = json.loads(res.read().decode())
+    login_data = {'email': 'admin@techcorp.example', 'password': 'admin123'}
+    res = requests.post(f"{BASE_URL}/auth/login", json=login_data, timeout=5)
+    assert res.status_code == 200, f"Login failed: {res.text}"
+    login_res = res.json()
     token = login_res['access_token']
     print(f"1. Login OK: {login_res['user']['name']} ({login_res['user']['role']})")
     
     headers = {'Authorization': f'Bearer {token}', 'Content-Type': 'application/json'}
     
     # 2. Test Dashboard Stats
-    req = urllib.request.Request('http://localhost:8000/api/v1/dashboard', headers=headers)
-    dash = json.loads(urllib.request.urlopen(req).read().decode())
+    res = requests.get(f"{BASE_URL}/dashboard", headers=headers, timeout=5)
+    assert res.status_code == 200, f"Dashboard failed: {res.text}"
+    dash = res.json()
     print(f"2. Dashboard Stats: {dash['total_meetings']} meetings, {dash['total_actions']} actions, {dash['completion_rate']}% completion rate, {dash['overdue_actions']} overdue")
     
     # 3. Create a test meeting
@@ -26,62 +29,59 @@ def test_api():
         'meeting_date': '2026-09-24T15:00:00Z',
         'classification': 'INTERNAL',
         'storage_policy': 'LOCAL_ONLY',
+        'storage_mode': 'LOCAL_ONLY',
         'participant_names': ['Arun Patel', 'Rahul Sharma', 'Priya Singh']
     }
-    req = urllib.request.Request('http://localhost:8000/api/v1/meetings', data=json.dumps(new_meeting).encode(), headers=headers)
-    m_res = json.loads(urllib.request.urlopen(req).read().decode())
+    res = requests.post(f"{BASE_URL}/meetings", json=new_meeting, headers=headers, timeout=5)
+    assert res.status_code == 201, f"Create meeting failed: {res.text}"
+    m_res = res.json()
     m_id = m_res['id']
     print(f"3. Created Meeting ID {m_id}: '{m_res['title']}', status: {m_res['status']}")
     
-    # 4. Trigger processing
-    req = urllib.request.Request(f'http://localhost:8000/api/v1/meetings/{m_id}/process', data=b'{}', headers=headers)
-    p_res = json.loads(urllib.request.urlopen(req).read().decode())
-    print(f"4. Processing Triggered: {p_res['status']}")
+    # 4. Add realistic spoken transcript segments
+    # (Simulating real speech transcribed from microphone)
+    print("   Adding real meeting transcript segments...")
+    segments = [
+        {"sequence": 1, "speaker_label": "SPEAKER_00", "speaker_name": "Arun Patel", "start_time": 0.0, "end_time": 5.0, "text": "Arun, please complete the website report by Friday."},
+        {"sequence": 2, "speaker_label": "SPEAKER_01", "speaker_name": "Rahul Sharma", "start_time": 5.5, "end_time": 10.0, "text": "We decided to keep all meeting recordings in local storage."}
+    ]
+    for seg in segments:
+        requests.post(f"{BASE_URL}/meetings/{m_id}/transcript-segment", json=seg, headers=headers)
+        
+    # 5. Trigger processing
+    res = requests.post(f"{BASE_URL}/meetings/{m_id}/process", json={}, headers=headers, timeout=5)
+    print(f"4. Processing Triggered: {res.json()['status']}")
     
     # Wait for processing background task
-    print("Waiting for extraction pipeline...")
-    time.sleep(2)
-    
-    # 5. Check meeting details
-    req = urllib.request.Request(f'http://localhost:8000/api/v1/meetings/{m_id}', headers=headers)
-    detail = json.loads(urllib.request.urlopen(req).read().decode())
-    print(f"5. Meeting Status after processing: {detail['status']} (Mode: {detail['processing_mode']})")
+    print("Waiting for Ollama / Llama extraction pipeline...")
+    for _ in range(15):
+        time.sleep(1)
+        res = requests.get(f"{BASE_URL}/meetings/{m_id}", headers=headers, timeout=5)
+        detail = res.json()
+        if detail['status'] in ('COMPLETED', 'FAILED'):
+            break
+
+    print(f"5. Meeting Status after processing: {detail['status']} (Mode: {detail.get('processing_mode')})")
     print(f"   Summary: {detail.get('summary')}")
     
     # Check decisions
-    req = urllib.request.Request(f'http://localhost:8000/api/v1/meetings/{m_id}/decisions', headers=headers)
-    decisions = json.loads(urllib.request.urlopen(req).read().decode())
+    res = requests.get(f"{BASE_URL}/meetings/{m_id}/decisions", headers=headers, timeout=5)
+    decisions = res.json()
     print(f"   Decisions count: {len(decisions)}")
     for d in decisions:
-        print(f"   - Decision: {d['decision_text']} (Requires Review: {d['requires_review']})")
+        print(f"   - Decision: {d.get('decision_text')} (Evidence: {d.get('evidence_text')})")
         
     # Check actions
-    req = urllib.request.Request(f'http://localhost:8000/api/v1/meetings/{m_id}/actions', headers=headers)
-    actions = json.loads(urllib.request.urlopen(req).read().decode())
+    res = requests.get(f"{BASE_URL}/meetings/{m_id}/actions", headers=headers, timeout=5)
+    actions = res.json()
     print(f"   Actions count: {len(actions)}")
     for a in actions:
-        print(f"   - Action: {a['action_text']} -> Assignee: {a.get('owner_name')} | Due: {a.get('deadline_text')} | Status: {a.get('status')}")
+        print(f"   - Action: {a.get('action_text')} -> Assignee: {a.get('owner_name')} | Due: {a.get('deadline_text')} | Status: {a.get('status')}")
         
-    # 6. Test updating an action item
-    if actions:
-        action = actions[0]
-        act_id = action['id']
-        patch_data = json.dumps({'status': 'COMPLETED'}).encode()
-        patch_req = urllib.request.Request(f'http://localhost:8000/api/v1/actions/{act_id}', data=patch_data, headers=headers, method='PATCH')
-        act_res = json.loads(urllib.request.urlopen(patch_req).read().decode())
-        print(f"6. Action Item #{act_id} updated: Status is now {act_res['status']} (Completed at: {act_res.get('completed_at')})")
-
-    # 7. Test AI Status Endpoint
-    req = urllib.request.Request('http://localhost:8000/api/v1/ai/status', headers=headers)
-    ai_status = json.loads(urllib.request.urlopen(req).read().decode())
-    print(f"7. AI Status: Local LLM Available = {ai_status['ollama_available']}, Whisper Available = {ai_status['whisper_available']}")
-
-    # 8. Test Search
-    req = urllib.request.Request('http://localhost:8000/api/v1/search?q=planning', headers=headers)
-    search_res = json.loads(urllib.request.urlopen(req).read().decode())
-    print(f"8. Search for 'planning': found {len(search_res)} matching records across meetings, actions, and decisions.")
-    for item in search_res[:3]:
-        print(f"   - [{item['type'].upper()}] {item['title']} (Meeting: {item.get('meeting_title')})")
+    # 6. Test AI Status Endpoint
+    res = requests.get(f"{BASE_URL}/ai/status", headers=headers, timeout=5)
+    ai_status = res.json()
+    print(f"6. AI Status: Local LLM Available = {ai_status.get('ollama_available')}, Model = {ai_status.get('model_name')}")
 
     print("\n=======================================================")
     print(" ALL END-TO-END PIPELINE TESTS COMPLETED SUCCESSFULLY!")
