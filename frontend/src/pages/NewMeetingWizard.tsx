@@ -19,9 +19,9 @@ export const NewMeetingWizard: React.FC = () => {
   const [meetingSource, setMeetingSource] = useState('OFFLINE_RECORDING');
   const [title, setTitle] = useState('');
   const [meetingDate, setMeetingDate] = useState(new Date().toISOString().slice(0, 16));
-  const [meetingUrl, setMeetingUrl] = useState('');
+  const [meetingUrl, setMeetingUrl] = useState('https://meet.google.com/ihf-rvix-cqx');
   const [participantInput, setParticipantInput] = useState('');
-  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(['Arun Kumar', 'Priya Sharma']);
+  const [selectedParticipants, setSelectedParticipants] = useState<string[]>(['Keerthi', 'Priya Sharma', 'Rahul Verma']);
   const [classification, setClassification] = useState('INTERNAL');
   const [aiProcessingMode, setAiProcessingMode] = useState('LOCAL_LLM');
   const [storageMode, setStorageMode] = useState('LOCAL_ONLY');

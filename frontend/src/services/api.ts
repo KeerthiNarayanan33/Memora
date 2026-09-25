@@ -177,6 +177,18 @@ export const speakersApi = {
     department?: string;
     role_title?: string;
   }) => api.post<Speaker>('/speakers', data).then(r => r.data),
+
+  enrollVoice: (id: string, fileOrBlob: Blob | File, filename = 'voice_sample.webm') => {
+    const form = new FormData();
+    form.append('file', fileOrBlob, filename);
+    return api.post<Speaker>(`/speakers/${id}/enroll`, form, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data);
+  },
+
+  getVoiceSampleUrl: (id: string) => `${BASE_URL}/speakers/${id}/sample`,
+
+  deleteEnrollment: (id: string) => api.delete<Speaker>(`/speakers/${id}/enroll`).then(r => r.data),
 };
 
 // ── Search ────────────────────────────────────────────────────────────────────
@@ -232,7 +244,12 @@ export const providersApi = {
     cloud_sync_scope?: string;
     participant_names?: string[];
     goal_id?: string;
+    transcript_sample?: string;
   }) => api.post<Meeting>('/providers/import', data).then(r => r.data),
+  importOnlineWithFile: (formData: FormData) =>
+    api.post<Meeting>('/providers/import-with-file', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    }).then(r => r.data),
 };
 
 // ── Storage Stats ─────────────────────────────────────────────────────────────
