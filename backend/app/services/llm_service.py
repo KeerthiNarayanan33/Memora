@@ -88,4 +88,27 @@ class LLMService:
             logger.error(f"[LLM] Generation failed: {e}")
         return None
 
+    async def generate_text(self, prompt: str, system: Optional[str] = None) -> Optional[str]:
+        """Call Ollama /api/generate with free-form text output"""
+        status = await self.get_status()
+        if not status["ollama_available"] or not status["model_available"]:
+            return None
+        active_model = status["model_name"]
+        try:
+            async with httpx.AsyncClient(timeout=self.timeout) as client:
+                body = {
+                    "model": active_model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {"temperature": 0.4, "top_p": 0.9}
+                }
+                if system:
+                    body["system"] = system
+                resp = await client.post(f"{self.base_url}/api/generate", json=body)
+                if resp.status_code == 200:
+                    return resp.json().get("response")
+        except Exception as e:
+            logger.error(f"[LLM] Text generation failed: {e}")
+        return None
+
 llm_service = LLMService()

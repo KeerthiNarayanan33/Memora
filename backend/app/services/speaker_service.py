@@ -11,16 +11,14 @@ from loguru import logger
 
 class SpeakerService:
     @staticmethod
-    def _extract_acoustic_features(audio_path: str, segments: List[Dict[str, Any]]) -> List[int]:
+    def _extract_voice_embedding(audio_path: str, start_time: Optional[float] = None, end_time: Optional[float] = None) -> np.ndarray:
         """
-        Extract vocal acoustic features (pitch, centroid, energy) from audio time slices
-        and cluster into speaker IDs (0, 1, 2...).
+        Extract normalized acoustic voice fingerprint (20-dim: RMS, ZCR, Centroid, Spread + 16 Mel filterbank bands).
         """
         try:
             data = None
             samplerate = 16000
 
-            # 1. Try PyAV (supports webm, ogg, mp4, wav, etc.)
             try:
                 import av
                 container = av.open(audio_path)
@@ -30,71 +28,57 @@ class SpeakerService:
                     samplerate = stream.sample_rate or 16000
                     chunks = []
                     for frame in container.decode(stream):
-                        arr = frame.to_ndarray()
-                        chunks.append(arr)
+                        chunks.append(frame.to_ndarray())
                     if chunks:
                         data = np.concatenate(chunks, axis=-1)
                         if data.ndim > 1:
                             data = np.mean(data, axis=0)
-                        data = data.astype(np.float32) / (np.max(np.abs(data)) + 1e-6)
+                        data = data.astype(np.float32)
+                        data /= (np.max(np.abs(data)) + 1e-6)
             except Exception as e_av:
-                logger.debug(f"[SPEAKER_DIARIZATION] PyAV read failed: {e_av}")
+                logger.debug(f"[SPEAKER_EMBEDDING] PyAV decode: {e_av}")
 
-            # 2. Fallback to soundfile if av not loaded
             if data is None:
                 import soundfile as sf
                 data, samplerate = sf.read(audio_path)
                 if data.ndim > 1:
                     data = np.mean(data, axis=1)
-            
-            features = []
-            for seg in segments:
-                start_samp = max(0, int(seg.get("start_time", 0.0) * samplerate))
-                end_samp = min(len(data), int(seg.get("end_time", 0.0) * samplerate))
-                chunk = data[start_samp:end_samp]
-                
-                if len(chunk) < 400:
-                    features.append([0.0, 0.0, 0.0])
-                    continue
-                
-                # 1. RMS Energy
-                energy = float(np.sqrt(np.mean(chunk ** 2)))
-                # 2. Zero Crossing Rate (pitch/texture)
-                zcr = float(np.mean(np.abs(np.diff(np.sign(chunk)))) / 2.0)
-                # 3. Spectral Centroid
-                fft_vals = np.abs(np.fft.rfft(chunk[:min(len(chunk), 4096)]))
-                freqs = np.fft.rfftfreq(len(chunk[:min(len(chunk), 4096)]), 1.0 / samplerate)
-                sum_fft = np.sum(fft_vals)
-                centroid = float(np.sum(freqs * fft_vals) / sum_fft) if sum_fft > 0 else 0.0
-                
-                features.append([energy * 100.0, zcr * 100.0, centroid / 1000.0])
+                data = data.astype(np.float32)
+                data /= (np.max(np.abs(data)) + 1e-6)
 
-            # Cluster if we have distinct segments
-            feat_arr = np.array(features)
-            if len(feat_arr) <= 1:
-                return [0] * len(segments)
+            if start_time is not None and end_time is not None:
+                s_idx = max(0, int(start_time * samplerate))
+                e_idx = min(len(data), int(end_time * samplerate))
+                if e_idx > s_idx:
+                    data = data[s_idx:e_idx]
 
-            # Normalize features
-            norm_feats = (feat_arr - np.mean(feat_arr, axis=0)) / (np.std(feat_arr, axis=0) + 1e-6)
-            
-            # Simple 2-to-3 cluster k-means
-            k = min(3, len(segments))
-            if norm_feats.shape[0] >= 3:
-                # K-means clustering
-                centroids = norm_feats[:k]
-                labels = np.zeros(len(norm_feats), dtype=int)
-                for _ in range(5):
-                    dists = np.linalg.norm(norm_feats[:, None, :] - centroids[None, :, :], axis=2)
-                    labels = np.argmin(dists, axis=1)
-                    for j in range(k):
-                        members = norm_feats[labels == j]
-                        if len(members) > 0:
-                            centroids[j] = np.mean(members, axis=0)
-                return labels.tolist()
-            return [0] * len(segments)
+            if len(data) < 200:
+                return np.zeros(20, dtype=np.float32)
+
+            rms = float(np.sqrt(np.mean(data ** 2)))
+            zcr = float(np.mean(np.abs(np.diff(np.sign(data)))) / 2.0)
+            fft_mag = np.abs(np.fft.rfft(data[:min(len(data), 32768)]))
+            freqs = np.fft.rfftfreq(len(data[:min(len(data), 32768)]), 1.0 / samplerate)
+            sum_fft = np.sum(fft_mag) + 1e-6
+            centroid = float(np.sum(freqs * fft_mag) / sum_fft)
+            spread = float(np.sqrt(np.sum(((freqs - centroid) ** 2) * fft_mag) / sum_fft))
+
+            bands = np.linspace(100, min(4000, samplerate // 2), 17)
+            band_energies = []
+            for b_idx in range(16):
+                low, high = bands[b_idx], bands[b_idx + 1]
+                mask = (freqs >= low) & (freqs < high)
+                band_e = float(np.sum(fft_mag[mask] ** 2)) if np.any(mask) else 0.0
+                band_energies.append(band_e)
+            band_energies = np.array(band_energies, dtype=np.float32)
+            band_energies = band_energies / (np.linalg.norm(band_energies) + 1e-6)
+
+            vec = np.concatenate([[rms, zcr, centroid / 1000.0, spread / 1000.0], band_energies])
+            norm = np.linalg.norm(vec) + 1e-6
+            return (vec / norm).astype(np.float32)
         except Exception as e:
-            logger.debug(f"[SPEAKER_DIARIZATION] Acoustic feature clustering skipped: {e}")
-            return []
+            logger.debug(f"[SPEAKER_EMBEDDING] Extraction error: {e}")
+            return np.zeros(20, dtype=np.float32)
 
     @staticmethod
     def identify_speakers(
@@ -106,29 +90,51 @@ class SpeakerService:
         audio_path: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
-        Attaches speaker labels (SPEAKER_00, SPEAKER_01...) using acoustic clustering,
-        dialogue turn markers, and enrolled speaker profiles.
+        Attaches real speaker identities using enrolled acoustic voice fingerprints,
+        dialogue turn markers, and acoustic similarity scoring.
         """
         if not segments:
             return []
 
-        # Load enrolled speaker profiles
+        backend_base = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+        def _resolve_audio(p_str: Optional[str]) -> Optional[str]:
+            if not p_str:
+                return None
+            if os.path.isabs(p_str) and os.path.exists(p_str):
+                return p_str
+            if os.path.exists(p_str):
+                return os.path.abspath(p_str)
+            candidate = os.path.join(backend_base, p_str)
+            if os.path.exists(candidate):
+                return candidate
+            return None
+
+        # 1. Load all enrolled speaker profiles and their voice embeddings
         profiles = db.query(SpeakerProfile).filter(
             SpeakerProfile.org_id == org_id,
             SpeakerProfile.voice_enrolled == True
         ).all()
-        name_to_profile = {p.display_name.lower(): p for p in profiles}
 
-        # 1. Check acoustic features if audio file is available
-        acoustic_labels = []
-        if audio_path and os.path.exists(audio_path):
-            acoustic_labels = SpeakerService._extract_acoustic_features(audio_path, segments)
+        enrolled_cache = []
+        name_to_profile = {}
+        for p in profiles:
+            clean_name = p.display_name.strip()
+            name_to_profile[clean_name.lower()] = p
+            first_name = clean_name.split()[0].lower()
+            if first_name not in name_to_profile:
+                name_to_profile[first_name] = p
 
-        # 2. Conversational Diarization pass
-        current_speaker_idx = 0
-        assigned_labels = []
-        
-        # Self-identification patterns
+            resolved_path = _resolve_audio(p.voice_embedding_path)
+            if resolved_path:
+                emb = SpeakerService._extract_voice_embedding(resolved_path)
+                if np.linalg.norm(emb) > 0.1:
+                    enrolled_cache.append((p, emb))
+                    logger.info(f"[SPEAKER_SERVICE] Loaded enrolled voice fingerprint for '{clean_name}' ({p.id}) from {resolved_path}")
+
+        # 2. Extract segment acoustic embeddings if audio is present
+        attributed_segments = []
+        resolved_meeting_audio = _resolve_audio(audio_path)
         self_id_pattern = re.compile(
             r"\b(?:this is|i'm|i am|here is|speaking is)\s+([A-Za-z]+)", re.IGNORECASE
         )
@@ -136,84 +142,85 @@ class SpeakerService:
         for i, seg in enumerate(segments):
             text = seg.get("text", "")
             explicit_label = seg.get("speaker_label")
+            matched_profile = None
+            matched_confidence = 0.75
+            matched_name = seg.get("speaker_name")
 
-            if explicit_label:
-                assigned_labels.append(explicit_label)
-                continue
+            # Check if seg already has a recognized speaker name matching an enrolled profile
+            if matched_name and matched_name.strip().lower() in name_to_profile:
+                matched_profile = name_to_profile[matched_name.strip().lower()]
+                matched_name = matched_profile.display_name
+                matched_confidence = 0.96
 
-            # Check if text has speaker prefix e.g. "Arun: Hello everyone"
-            if ":" in text[:30]:
+            # Check explicit text prefix ONLY if not already matched to an enrolled profile
+            if not matched_profile and ":" in text[:35]:
                 prefix, rest = text.split(":", 1)
                 prefix_clean = prefix.strip()
-                if len(prefix_clean.split()) <= 3 and not prefix_clean.lower().startswith("http"):
-                    assigned_labels.append(f"SPEAKER_{prefix_clean.upper()}")
-                    seg["text"] = rest.strip()
-                    continue
+                if (len(prefix_clean.split()) <= 4 and 
+                    not prefix_clean.lower().startswith("http") and 
+                    prefix_clean.lower() not in ("decision", "formal decision", "action", "note", "item")):
+                    p_match = name_to_profile.get(prefix_clean.lower())
+                    if p_match:
+                        matched_profile = p_match
+                        matched_name = p_match.display_name
+                        matched_confidence = 0.96
+                        seg["text"] = rest.strip()
+                    elif not matched_name or matched_name in ("Speaker", "Unknown"):
+                        matched_name = prefix_clean
+                        matched_confidence = 0.90
+                        seg["text"] = rest.strip()
 
-            # Check self-identification
-            match = self_id_pattern.search(text)
-            if match:
-                detected_name = match.group(1).capitalize()
-                # Check if matches known participants
-                matched_known = next((kp for kp in known_participants if detected_name.lower() in kp.lower()), None)
-                if matched_known:
-                    idx = known_participants.index(matched_known)
-                    current_speaker_idx = idx
-                    assigned_labels.append(f"SPEAKER_{idx:02d}")
-                    continue
+            # Check acoustic voice fingerprint against enrolled profiles
+            if not matched_profile and resolved_meeting_audio and os.path.exists(resolved_meeting_audio) and enrolled_cache:
+                start_t = seg.get("start_time", 0.0)
+                end_t = seg.get("end_time", 0.0)
+                seg_emb = SpeakerService._extract_voice_embedding(resolved_meeting_audio, start_t, end_t)
+                if np.linalg.norm(seg_emb) > 0.1:
+                    best_score = -1.0
+                    best_prof = None
+                    for prof, p_emb in enrolled_cache:
+                        sim = float(np.dot(seg_emb, p_emb))
+                        if sim > best_score:
+                            best_score = sim
+                            best_prof = prof
+                    
+                    if best_prof and best_score >= 0.40:
+                        matched_profile = best_prof
+                        matched_name = best_prof.display_name
+                        matched_confidence = round(min(0.98, max(0.85, best_score)), 2)
+                        logger.info(f"[SPEAKER_SERVICE] Acoustic match: Seg {i} -> '{best_prof.display_name}' (score: {best_score:.3f})")
 
-            # Check acoustic cluster
-            if acoustic_labels and i < len(acoustic_labels):
-                assigned_labels.append(f"SPEAKER_{acoustic_labels[i]:02d}")
-                continue
+            # Check self-identification in text
+            if not matched_profile:
+                m = self_id_pattern.search(text)
+                if m:
+                    det = m.group(1).lower()
+                    for p_name, prof in name_to_profile.items():
+                        if det in p_name:
+                            matched_profile = prof
+                            matched_name = prof.display_name
+                            matched_confidence = 0.92
+                            break
 
-            # Check pause-based turn transition (>1.2s pause between sentences suggests speaker change)
-            if i > 0:
-                prev_end = segments[i - 1].get("end_time", 0.0)
-                cur_start = seg.get("start_time", 0.0)
-                if (cur_start - prev_end) > 1.2 and len(known_participants) > 1:
-                    current_speaker_idx = (current_speaker_idx + 1) % len(known_participants)
+            # Fallback to known participants or default speaker label
+            if not matched_name or matched_name in ("Speaker", "Unknown"):
+                if known_participants:
+                    matched_name = known_participants[i % len(known_participants)]
+                    p_match = name_to_profile.get(matched_name.lower())
+                    if p_match:
+                        matched_profile = p_match
+                        matched_confidence = 0.88
+                else:
+                    matched_name = f"Speaker {((i % 3) + 1)}"
+                    matched_confidence = 0.70
 
-            assigned_labels.append(f"SPEAKER_{current_speaker_idx:02d}")
-
-        # 3. Map speaker labels to participants & enrolled profiles
-        unique_labels = sorted(list(set(assigned_labels)))
-        label_to_identity = {}
-        for idx, lbl in enumerate(unique_labels):
-            if idx < len(known_participants):
-                name = known_participants[idx]
-                prof = name_to_profile.get(name.lower())
-                conf = 0.92 if prof else 0.82
-                label_to_identity[lbl] = {
-                    "name": name,
-                    "profile_id": prof.id if prof else None,
-                    "confidence": conf,
-                    "identified": True
-                }
-            else:
-                label_to_identity[lbl] = {
-                    "name": f"Speaker {idx + 1}",
-                    "profile_id": None,
-                    "confidence": 0.65,
-                    "identified": False
-                }
-
-        attributed_segments = []
-        for i, seg in enumerate(segments):
-            lbl = assigned_labels[i]
-            identity = label_to_identity.get(lbl, {
-                "name": "Speaker 1",
-                "profile_id": None,
-                "confidence": 0.65,
-                "identified": False
-            })
-
+            spk_label = explicit_label or f"SPEAKER_{matched_name.upper().replace(' ', '_')}"
             attributed_segments.append({
                 **seg,
-                "speaker_label": lbl,
-                "speaker_name": identity["name"],
-                "speaker_profile_id": identity["profile_id"],
-                "speaker_confidence": identity["confidence"],
+                "speaker_label": spk_label,
+                "speaker_name": matched_name,
+                "speaker_profile_id": matched_profile.id if matched_profile else None,
+                "speaker_confidence": matched_confidence,
             })
 
         return attributed_segments

@@ -2,7 +2,9 @@
 import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List
-from fastapi import APIRouter, Depends, HTTPException
+import os
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, func
 
@@ -173,6 +175,90 @@ async def create_speaker(
     db.add(sp)
     db.commit()
     db.refresh(sp)
+    return SpeakerOut.model_validate(sp)
+
+
+@speakers_router.post("/{speaker_id}/enroll", response_model=SpeakerOut)
+async def enroll_speaker_voice(
+    speaker_id: str,
+    file: UploadFile = File(...),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Enroll or re-initialize a speaker's voice using an audio recording or file."""
+    sp = db.query(SpeakerProfile).filter(
+        SpeakerProfile.id == speaker_id,
+        SpeakerProfile.org_id == current_user.org_id
+    ).first()
+    if not sp:
+        raise HTTPException(status_code=404, detail="Speaker profile not found")
+
+    speaker_dir = os.path.join("data", "speakers")
+    os.makedirs(speaker_dir, exist_ok=True)
+
+    ext = os.path.splitext(file.filename or "")[1].lower() or ".webm"
+    file_path = os.path.join(speaker_dir, f"{speaker_id}{ext}")
+
+    content = await file.read()
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    sp.voice_embedding_path = file_path
+    sp.voice_enrolled = True
+    sp.enrollment_status = "ENROLLED"
+    sp.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(sp)
+
+    return SpeakerOut.model_validate(sp)
+
+
+@speakers_router.get("/{speaker_id}/sample")
+async def get_speaker_voice_sample(
+    speaker_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Retrieve the audio sample for an enrolled speaker."""
+    sp = db.query(SpeakerProfile).filter(
+        SpeakerProfile.id == speaker_id,
+        SpeakerProfile.org_id == current_user.org_id
+    ).first()
+    if not sp or not sp.voice_embedding_path or not os.path.exists(sp.voice_embedding_path):
+        raise HTTPException(status_code=404, detail="Voice sample not found")
+
+    ext = os.path.splitext(sp.voice_embedding_path)[1].lower()
+    media_type = "audio/webm" if ext == ".webm" else "audio/wav" if ext == ".wav" else "audio/mpeg"
+    return FileResponse(sp.voice_embedding_path, media_type=media_type, filename=f"{sp.display_name}_voice_sample{ext}")
+
+
+@speakers_router.delete("/{speaker_id}/enroll", response_model=SpeakerOut)
+async def reset_speaker_voice(
+    speaker_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Reset voice enrollment for a speaker profile."""
+    sp = db.query(SpeakerProfile).filter(
+        SpeakerProfile.id == speaker_id,
+        SpeakerProfile.org_id == current_user.org_id
+    ).first()
+    if not sp:
+        raise HTTPException(status_code=404, detail="Speaker profile not found")
+
+    if sp.voice_embedding_path and os.path.exists(sp.voice_embedding_path):
+        try:
+            os.remove(sp.voice_embedding_path)
+        except Exception:
+            pass
+
+    sp.voice_embedding_path = None
+    sp.voice_enrolled = False
+    sp.enrollment_status = "NOT_ENROLLED"
+    sp.updated_at = datetime.now(timezone.utc)
+    db.commit()
+    db.refresh(sp)
+
     return SpeakerOut.model_validate(sp)
 
 

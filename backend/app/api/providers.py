@@ -1,9 +1,11 @@
 """
 Providers & Cloud Service API Router
 """
+import os
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, UploadFile, File, Form
 from sqlalchemy.orm import Session
+from datetime import datetime
 
 from app.database.session import get_db
 from app.database.models import User, Meeting
@@ -31,13 +33,17 @@ async def import_online_meeting(
     Import an online meeting (e.g. from Google Meet, Microsoft Teams, or uploaded recording).
     Crucially: AI processing is LOCAL (Local Llama) even for online meetings!
     """
+    desc = f"Imported from {data.provider} ({data.meeting_url or 'Direct Upload'})"
+    if data.transcript_sample and data.transcript_sample.strip():
+        desc += f"\n\nTranscript:\n{data.transcript_sample.strip()}"
+
     meeting = meeting_service.create_meeting(
         db=db,
         org_id=current_user.org_id,
         user_id=current_user.id,
         title=data.title,
         meeting_date=data.meeting_date,
-        description=f"Imported from {data.provider} ({data.meeting_url or 'Direct Upload'})",
+        description=desc,
         classification=data.classification,
         storage_policy=data.storage_mode,
         storage_mode=data.storage_mode,
@@ -51,6 +57,75 @@ async def import_online_meeting(
     )
 
     # Automatically queue background processing
+    background_tasks.add_task(
+        meeting_service.process_pipeline,
+        meeting.id,
+        current_user.org_id,
+        current_user.id
+    )
+
+    return MeetingOut.model_validate(meeting)
+
+
+@router.post("/providers/import-with-file", response_model=MeetingOut)
+async def import_online_meeting_with_file(
+    background_tasks: BackgroundTasks,
+    title: str = Form(...),
+    provider: str = Form("GOOGLE_MEET"),
+    meeting_url: Optional[str] = Form(None),
+    meeting_date: str = Form(...),
+    classification: str = Form("GENERAL"),
+    storage_mode: str = Form("CLOUD"),
+    cloud_sync_scope: str = Form("SUMMARY_AND_ACTIONS"),
+    participant_names: str = Form(""),
+    transcript_sample: Optional[str] = Form(None),
+    file: Optional[UploadFile] = File(None),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Import online meeting with real recording file (Google Meet MP4/WEBM/WAV) or real captions text.
+    """
+    parsed_date = datetime.fromisoformat(meeting_date.replace("Z", "+00:00")) if "T" in meeting_date else datetime.now()
+    p_list = [p.strip() for p in participant_names.split(",") if p.strip()]
+
+    desc = f"Imported from {provider} ({meeting_url or 'Direct Upload'})"
+    if transcript_sample and transcript_sample.strip():
+        desc += f"\n\nTranscript:\n{transcript_sample.strip()}"
+
+    meeting = meeting_service.create_meeting(
+        db=db,
+        org_id=current_user.org_id,
+        user_id=current_user.id,
+        title=title,
+        meeting_date=parsed_date,
+        description=desc,
+        classification=classification,
+        storage_policy=storage_mode,
+        storage_mode=storage_mode,
+        meeting_source=provider,
+        ai_processing_mode="LOCAL_LLM",
+        cloud_sync_scope=cloud_sync_scope,
+        cloud_provider=provider,
+        meeting_url=meeting_url,
+        participant_names=p_list
+    )
+
+    # If audio/video file attached, save it to the meeting vault
+    if file and file.filename:
+        meeting_dir = storage_service.get_meeting_dir(meeting.id)
+        ext = os.path.splitext(file.filename)[1].lower() or ".webm"
+        file_path = os.path.join(meeting_dir, f"recording{ext}")
+        content = await file.read()
+        with open(file_path, "wb") as f:
+            f.write(content)
+        meeting.audio_path = file_path
+        meeting.audio_format = ext.lstrip(".")
+        meeting.audio_size_bytes = len(content)
+        meeting.status = "AUDIO_UPLOADED"
+        db.commit()
+
+    # Queue processing pipeline
     background_tasks.add_task(
         meeting_service.process_pipeline,
         meeting.id,

@@ -17,6 +17,25 @@ def _to_bool(val: Any, default: bool = False) -> bool:
             return False
     return default
 
+def _to_float(val: Any, default: float = 0.85) -> float:
+    if val is None:
+        return default
+    if isinstance(val, (int, float)):
+        return float(val)
+    if isinstance(val, str):
+        cleaned = val.strip().upper()
+        if cleaned in ("HIGH", "VERY HIGH", "STRONG"):
+            return 0.92
+        elif cleaned in ("MEDIUM", "MODERATE"):
+            return 0.75
+        elif cleaned in ("LOW", "WEAK"):
+            return 0.50
+        try:
+            return float(cleaned)
+        except ValueError:
+            return default
+    return default
+
 class ValidationService:
     @staticmethod
     def validate_extraction(raw_data: Dict[str, Any], transcript_text: str) -> Dict[str, Any]:
@@ -39,7 +58,7 @@ class ValidationService:
                 "decision": str(dec.get("decision", "")),
                 "evidence": evidence or "Evidence inferred from speaker dialogue",
                 "participants": dec.get("participants", []) if isinstance(dec.get("participants"), list) else [],
-                "confidence": float(dec.get("confidence", 0.85 if anchored else 0.60)),
+                "confidence": _to_float(dec.get("confidence"), 0.85 if anchored else 0.60),
                 "hallucination_risk": bool(not anchored),
                 "requires_review": bool(not anchored),
             })
@@ -72,7 +91,7 @@ class ValidationService:
                 "deadline": deadline,
                 "deadline_explicit": bool(deadline_explicit),
                 "evidence": evidence or "Direct dialogue commitment",
-                "confidence": float(act.get("confidence", 0.90 if (owner_explicit and deadline_explicit) else 0.70)),
+                "confidence": _to_float(act.get("confidence"), 0.90 if (owner_explicit and deadline_explicit) else 0.70),
                 "is_commitment": _to_bool(act.get("is_commitment"), default=True),
                 "hallucination_risk": bool(not anchored or not owner_explicit),
                 "requires_review": bool(not owner_explicit or not deadline_explicit or not anchored),
