@@ -28,9 +28,9 @@ from app.services.storage_service import storage_service
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup/shutdown"""
-    logger.info(f"Starting MeetGuard AI ({settings.app_env})")
+    logger.info(f"Starting Memora AI ({settings.app_env})")
     
-    # Initialize MeetGuard storage hierarchy
+    # Initialize Memora storage hierarchy
     storage_service.initialize()
     os.makedirs(settings.upload_dir, exist_ok=True)
     os.makedirs(settings.local_storage_dir, exist_ok=True)
@@ -49,11 +49,11 @@ async def lifespan(app: FastAPI):
             db.close()
     
     yield
-    logger.info("MeetGuard AI shutting down")
+    logger.info("Memora AI shutting down")
 
 
 app = FastAPI(
-    title="MeetGuard AI",
+    title="Memora AI",
     description="Enterprise Meeting Intelligence Platform — From conversations to commitments.",
     version="1.0.0",
     lifespan=lifespan,
@@ -98,4 +98,4 @@ async def health():
 
 @app.get("/")
 async def root():
-    return {"message": "MeetGuard AI API", "docs": "/docs"}
+    return {"message": "Memora AI API", "docs": "/docs"}

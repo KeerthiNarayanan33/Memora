@@ -131,7 +131,9 @@ class MeetingService:
             meeting.status = "IDENTIFYING_SPEAKERS"
             db.commit()
             known = [p.name for p in meeting.participants]
-            attributed = speaker_service.identify_speakers(db, org_id, meeting_id, segments, known)
+            attributed = speaker_service.identify_speakers(
+                db, org_id, meeting_id, segments, known, audio_path=meeting.audio_path
+            )
             
             # Persist transcript segments
             transcript_full = " ".join(s["text"] for s in attributed)
@@ -174,23 +176,41 @@ class MeetingService:
             meeting.follow_up_topics = validated.get("follow_up_topics", [])
             meeting.sentiment_overall = validated.get("sentiment_overall", "NEUTRAL")
 
+            def _to_bool(val: Any, default: bool = False) -> bool:
+                if isinstance(val, bool):
+                    return val
+                if isinstance(val, (int, float)):
+                    return bool(val)
+                if isinstance(val, str):
+                    cleaned = val.strip().lower()
+                    if cleaned in ("true", "1", "yes", "t", "y"):
+                        return True
+                    if cleaned in ("false", "0", "no", "n", "f"):
+                        return False
+                return default
+
             # Persist decisions
             for d in validated.get("decisions", []):
+                raw_parts = d.get("participants", [])
+                if isinstance(raw_parts, str):
+                    raw_parts = [p.strip() for p in raw_parts.split(",") if p.strip()]
+                elif not isinstance(raw_parts, list):
+                    raw_parts = []
+
                 db.add(Decision(
                     id=str(uuid.uuid4()),
                     meeting_id=meeting_id,
                     org_id=org_id,
-                    decision_text=d.get("decision", ""),
-                    evidence_text=d.get("evidence", ""),
-                    participants_involved=d.get("participants", []),
-                    confidence=d.get("confidence", 0.9),
-                    hallucination_risk=d.get("hallucination_risk", False),
-                    requires_review=d.get("requires_review", False)
+                    decision_text=str(d.get("decision", "")),
+                    evidence_text=str(d.get("evidence", "")),
+                    participants_involved=raw_parts,
+                    hallucination_risk=_to_bool(d.get("hallucination_risk"), False),
+                    requires_review=_to_bool(d.get("requires_review"), False)
                 ))
 
             # Persist action items
             for a in validated.get("action_items", []):
-                act_text = a.get("action", "")
+                act_text = str(a.get("action", ""))
                 if act_text in matched_titles:
                     match_info = matched_titles[act_text]
                     existing_act = db.query(ActionItem).filter(ActionItem.id == match_info["existing_action_id"]).first()
@@ -208,10 +228,10 @@ class MeetingService:
                         ))
                     continue
 
-                owner = a.get("owner", "UNRESOLVED")
-                owner_explicit = a.get("owner_explicit", True)
-                deadline = a.get("deadline", "UNRESOLVED")
-                deadline_explicit = a.get("deadline_explicit", True)
+                owner = str(a.get("owner", "UNRESOLVED")).strip()
+                owner_explicit = _to_bool(a.get("owner_explicit"), default=(owner != "UNRESOLVED"))
+                deadline = str(a.get("deadline", "UNRESOLVED")).strip()
+                deadline_explicit = _to_bool(a.get("deadline_explicit"), default=(deadline != "UNRESOLVED"))
                 
                 # Resolve owner to known user if possible
                 owner_user = None
@@ -225,15 +245,15 @@ class MeetingService:
                     action_text=act_text,
                     owner_name=owner,
                     owner_user_id=owner_user.id if owner_user else None,
-                    owner_explicit=owner_explicit,
+                    owner_explicit=bool(owner_explicit),
                     deadline_text=deadline,
-                    deadline_explicit=deadline_explicit,
+                    deadline_explicit=bool(deadline_explicit),
                     status="NEW" if owner != "UNRESOLVED" else "UNRESOLVED",
-                    evidence_text=a.get("evidence", ""),
-                    confidence=a.get("confidence", 0.85),
-                    is_commitment=a.get("is_commitment", True),
-                    hallucination_risk=a.get("hallucination_risk", False),
-                    requires_review=a.get("requires_review", False)
+                    evidence_text=str(a.get("evidence", "")),
+                    confidence=float(a.get("confidence", 0.85)),
+                    is_commitment=_to_bool(a.get("is_commitment"), True),
+                    hallucination_risk=_to_bool(a.get("hallucination_risk"), False),
+                    requires_review=_to_bool(a.get("requires_review"), False)
                 ))
 
             # Persist unresolved items
@@ -279,6 +299,10 @@ class MeetingService:
 
         except Exception as e:
             logger.exception(f"[MEETING_SERVICE] Error processing meeting {meeting_id}: {e}")
+            try:
+                db.rollback()
+            except Exception:
+                pass
             m = db.query(Meeting).filter(Meeting.id == meeting_id).first()
             if m:
                 m.status = "FAILED"

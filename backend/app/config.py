@@ -9,7 +9,7 @@ from pydantic import field_validator
 
 class Settings(BaseSettings):
     # Application
-    app_name: str = "MeetGuard AI"
+    app_name: str = "Memora AI"
     app_env: Literal["development", "production", "demo"] = "development"
     debug: bool = True
     log_level: str = "INFO"

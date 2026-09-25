@@ -40,6 +40,19 @@ def _log(db, event, user_id=None, description=None, org_id=None, resource_id=Non
 from app.services.meeting_service import meeting_service
 
 
+def _clean_list(val) -> List[str]:
+    if isinstance(val, list):
+        return [str(x) for x in val if x]
+    if isinstance(val, str):
+        try:
+            parsed = json.loads(val)
+            if isinstance(parsed, list):
+                return [str(x) for x in parsed if x]
+        except Exception:
+            return [val] if val.strip() else []
+    return []
+
+
 def _meeting_to_out(m: Meeting, db: Session) -> MeetingOut:
     return MeetingOut(
         id=m.id, title=m.title, description=m.description,
@@ -54,7 +67,7 @@ def _meeting_to_out(m: Meeting, db: Session) -> MeetingOut:
         cloud_provider=m.cloud_provider,
         meeting_url=m.meeting_url,
         status=m.status, processing_mode=m.processing_mode,
-        summary=m.summary, key_points=m.key_points,
+        summary=m.summary, key_points=_clean_list(m.key_points),
         sentiment_overall=m.sentiment_overall, created_at=m.created_at,
         decision_count=len(m.decisions),
         action_count=len(m.action_items),
@@ -152,8 +165,8 @@ async def get_meeting(
         cloud_provider=m.cloud_provider,
         meeting_url=m.meeting_url,
         status=m.status, processing_mode=m.processing_mode,
-        summary=m.summary, key_points=m.key_points,
-        risks=m.risks, follow_up_topics=m.follow_up_topics,
+        summary=m.summary, key_points=_clean_list(m.key_points),
+        risks=_clean_list(m.risks), follow_up_topics=_clean_list(m.follow_up_topics),
         sentiment_overall=m.sentiment_overall, created_at=m.created_at,
         processing_error=m.processing_error,
         decision_count=len(m.decisions),
@@ -216,6 +229,7 @@ async def upload_audio(
 async def process_meeting(
     meeting_id: str,
     background_tasks: BackgroundTasks,
+    force: bool = False,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -225,10 +239,11 @@ async def process_meeting(
     if not m:
         raise HTTPException(status_code=404, detail="Meeting not found")
     
-    if m.status in ("PROCESSING", "TRANSCRIBING", "IDENTIFYING_SPEAKERS", "ANALYZING"):
+    if not force and m.status in ("PROCESSING", "TRANSCRIBING", "IDENTIFYING_SPEAKERS", "ANALYZING", "VALIDATING"):
         raise HTTPException(status_code=400, detail="Meeting is already being processed")
     
     m.status = "PROCESSING"
+    m.processing_error = None
     m.processing_started_at = datetime.now(timezone.utc)
     db.commit()
     
@@ -237,6 +252,33 @@ async def process_meeting(
     )
     
     return {"status": "processing_started", "meeting_id": meeting_id}
+
+
+@router.patch("/{meeting_id}/transcript/{segment_id}")
+async def update_transcript_segment(
+    meeting_id: str,
+    segment_id: str,
+    payload: Dict[str, Any],
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    seg = db.query(TranscriptSegment).filter(
+        TranscriptSegment.id == segment_id,
+        TranscriptSegment.meeting_id == meeting_id
+    ).first()
+    if not seg:
+        raise HTTPException(status_code=404, detail="Transcript segment not found")
+    
+    if "speaker_name" in payload:
+        seg.speaker_name = payload["speaker_name"]
+        seg.speaker_confidence = 0.99
+    if "speaker_label" in payload:
+        seg.speaker_label = payload["speaker_label"]
+    if "text" in payload:
+        seg.text = payload["text"]
+    
+    db.commit()
+    return {"status": "updated", "segment_id": segment_id, "speaker_name": seg.speaker_name}
 
 
 async def _process_meeting_bg(meeting_id: str, org_id: str, user_id: str):

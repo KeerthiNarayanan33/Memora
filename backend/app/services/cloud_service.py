@@ -102,7 +102,7 @@ class CloudService:
         return {
             "status": "SUCCESS",
             "message": f"Successfully synchronized meeting under scope: {scope}",
-            "cloud_destination": "MeetGuard Enterprise Cloud Vault (Demo Abstraction)",
+            "cloud_destination": "Memora Enterprise Cloud Vault (Demo Abstraction)",
             "payload": payload,
             "synced_at": datetime.now(timezone.utc),
         }

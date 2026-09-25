@@ -6,7 +6,7 @@ from typing import Dict, Any, List, Optional
 from loguru import logger
 from app.services.llm_service import llm_service
 
-SYSTEM_PROMPT = """You are MeetGuard AI, an enterprise meeting intelligence engine.
+SYSTEM_PROMPT = """You are Memora AI, an enterprise meeting intelligence engine.
 Extract structured commitments from the meeting transcript.
 CRITICAL ZERO-HALLUCINATION RULES:
 1. ONLY extract decisions and actions explicitly stated in the transcript.

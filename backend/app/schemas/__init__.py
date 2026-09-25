@@ -178,12 +178,28 @@ class DecisionOut(BaseModel):
     meeting_id: str
     decision_text: str
     evidence_text: str
-    evidence_segment_id: Optional[str]
-    evidence_timestamp: Optional[float]
-    participants_involved: Optional[List[str]]
-    hallucination_risk: bool
-    requires_review: bool
+    evidence_segment_id: Optional[str] = None
+    evidence_timestamp: Optional[float] = None
+    participants_involved: Optional[List[str]] = []
+    hallucination_risk: bool = False
+    requires_review: bool = False
     created_at: datetime
+
+    @field_validator("participants_involved", mode="before")
+    @classmethod
+    def parse_participants(cls, v):
+        if isinstance(v, str):
+            if v.startswith("[") and v.endswith("]"):
+                try:
+                    import json
+                    return json.loads(v)
+                except Exception:
+                    pass
+            return [p.strip() for p in v.split(",") if p.strip()]
+        if v is None:
+            return []
+        return v
+
     class Config:
         from_attributes = True
 
