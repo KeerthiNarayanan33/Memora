@@ -25,17 +25,17 @@ export const InterfaceLanding: React.FC = () => {
             <Shield className="w-5 h-5 text-white" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-white flex items-center gap-2">
-              MeetGuard AI
-              <span className="text-2xs bg-brand-500/20 text-brand-300 border border-brand-500/30 px-2 py-0.5 rounded-full font-mono">
+            <h1 className="text-xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+              Memora AI
+              <span className="text-2xs bg-brand-50 text-brand-700 border border-brand-200 px-2 py-0.5 rounded-full font-mono font-semibold">
                 v2.0
               </span>
             </h1>
-            <p className="text-xs text-surface-400">From conversations to commitments.</p>
+            <p className="text-xs text-slate-500">From conversations to commitments.</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 text-xs text-surface-400 bg-surface-900 border border-surface-700 px-3 py-1.5 rounded-full">
-          <Lock className="w-3.5 h-3.5 text-emerald-400" />
+        <div className="flex items-center gap-2 text-xs text-slate-600 bg-white border border-slate-200 shadow-xs px-3 py-1.5 rounded-full font-medium">
+          <Lock className="w-3.5 h-3.5 text-emerald-600" />
           <span>Local AI Intelligence Boundary</span>
         </div>
       </header>
@@ -43,47 +43,47 @@ export const InterfaceLanding: React.FC = () => {
       {/* Main Selector Content */}
       <main className="max-w-5xl mx-auto w-full my-auto py-8 z-10">
         <div className="text-center mb-10">
-          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white mb-3">
-            HOW DO YOU WANT TO USE <span className="text-gradient">MEETGUARD AI</span>?
+          <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-slate-900 mb-3">
+            HOW DO YOU WANT TO USE <span className="text-brand-600">MEMORA AI</span>?
           </h2>
-          <p className="text-base text-surface-300 max-w-xl mx-auto">
+          <p className="text-base text-slate-600 max-w-xl mx-auto font-medium">
             Choose how your meeting is being conducted. Select Local for sensitive discussions or Online for Google Meet workflows.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 max-w-4xl mx-auto">
           {/* CARD 1: LOCAL INTERFACE */}
-          <div className="card hover:border-brand-500/50 transition-all duration-300 flex flex-col justify-between p-8 bg-surface-900/90 border-surface-700/80 hover:shadow-2xl hover:shadow-brand-500/10 group">
+          <div className="card hover:border-brand-500 transition-all duration-300 flex flex-col justify-between p-8 bg-white border-slate-200 shadow-md hover:shadow-xl group">
             <div>
               <div className="flex items-center justify-between mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 group-hover:scale-105 transition-transform">
+                <div className="w-14 h-14 rounded-2xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-600 group-hover:scale-105 transition-transform">
                   <Laptop className="w-7 h-7" />
                 </div>
-                <span className="badge bg-blue-500/15 text-blue-300 border border-blue-500/30 text-xs px-3 py-1">
+                <span className="badge bg-blue-50 text-blue-700 border border-blue-200 text-xs px-3 py-1 font-semibold">
                   Offline / Local
                 </span>
               </div>
 
-              <h3 className="text-2xl font-bold text-white mb-2">Local Interface</h3>
-              <p className="text-sm text-surface-300 mb-6 leading-relaxed">
+              <h3 className="text-2xl font-extrabold text-slate-900 mb-2">Local Interface</h3>
+              <p className="text-sm text-slate-600 mb-6 leading-relaxed">
                 For highly confidential meetings occurring in physical conference rooms or labs. Record and process meetings directly on your device using local AI.
               </p>
 
               <div className="space-y-3 mb-8">
-                <div className="flex items-center gap-2.5 text-sm text-surface-200">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="flex items-center gap-2.5 text-sm text-slate-700 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Works directly on your PC / laptop</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-surface-200">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="flex items-center gap-2.5 text-sm text-slate-700 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Uses local Llama via Ollama (Zero Cloud)</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-surface-200">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
-                  <span>Stores data inside your local MeetGuard folder</span>
+                <div className="flex items-center gap-2.5 text-sm text-slate-700 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span>Stores data inside your local Memora folder</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-surface-200">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                <div className="flex items-center gap-2.5 text-sm text-slate-700 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
                   <span>Best for highly confidential & board meetings</span>
                 </div>
               </div>
@@ -99,37 +99,37 @@ export const InterfaceLanding: React.FC = () => {
           </div>
 
           {/* CARD 2: ONLINE INTERFACE */}
-          <div className="card hover:border-purple-500/50 transition-all duration-300 flex flex-col justify-between p-8 bg-surface-900/90 border-surface-700/80 hover:shadow-2xl hover:shadow-purple-500/10 group">
+          <div className="card hover:border-purple-500 transition-all duration-300 flex flex-col justify-between p-8 bg-white border-slate-200 shadow-md hover:shadow-xl group">
             <div>
               <div className="flex items-center justify-between mb-6">
-                <div className="w-14 h-14 rounded-2xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center text-purple-400 group-hover:scale-105 transition-transform">
+                <div className="w-14 h-14 rounded-2xl bg-purple-50 border border-purple-200 flex items-center justify-center text-purple-600 group-hover:scale-105 transition-transform">
                   <Video className="w-7 h-7" />
                 </div>
-                <span className="badge bg-purple-500/15 text-purple-300 border border-purple-500/30 text-xs px-3 py-1">
+                <span className="badge bg-purple-50 text-purple-700 border border-purple-200 text-xs px-3 py-1 font-semibold">
                   Online / Cloud
                 </span>
               </div>
 
-              <h3 className="text-2xl font-bold text-white mb-2">Google & Online Interface</h3>
-              <p className="text-sm text-surface-300 mb-6 leading-relaxed">
+              <h3 className="text-2xl font-extrabold text-slate-900 mb-2">Google & Online Interface</h3>
+              <p className="text-sm text-slate-600 mb-6 leading-relaxed">
                 Process meetings from Google Meet, Microsoft Teams, and cloud recordings while keeping AI processing local and controlling cloud sync scope.
               </p>
 
               <div className="space-y-3 mb-8">
-                <div className="flex items-center gap-2.5 text-sm text-surface-200">
-                  <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0" />
+                <div className="flex items-center gap-2.5 text-sm text-slate-700 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
                   <span>Integrates with Google Meet & Teams workflows</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-surface-200">
-                  <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0" />
+                <div className="flex items-center gap-2.5 text-sm text-slate-700 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
                   <span>OneDrive & Cloud meeting audio/video support</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-surface-200">
-                  <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0" />
+                <div className="flex items-center gap-2.5 text-sm text-slate-700 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
                   <span>AI processing still executes via Local Llama</span>
                 </div>
-                <div className="flex items-center gap-2.5 text-sm text-surface-200">
-                  <CheckCircle2 className="w-4 h-4 text-purple-400 shrink-0" />
+                <div className="flex items-center gap-2.5 text-sm text-slate-700 font-medium">
+                  <CheckCircle2 className="w-4 h-4 text-purple-600 shrink-0" />
                   <span>Best for general, customer, and team standups</span>
                 </div>
               </div>
@@ -147,10 +147,10 @@ export const InterfaceLanding: React.FC = () => {
 
         {/* Value Proposition Callout */}
         <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-3 bg-surface-900/60 border border-surface-800 rounded-full px-5 py-2 text-xs text-surface-300">
-            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="font-semibold text-white">Your meeting. Your data. Your choice.</span>
-            <span className="text-surface-500">|</span>
+          <div className="inline-flex items-center gap-3 bg-white border border-slate-200 shadow-xs rounded-full px-5 py-2 text-xs text-slate-600">
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="font-bold text-slate-900">Your meeting. Your data. Your choice.</span>
+            <span className="text-slate-300">|</span>
             <span>Local AI extraction active by default across both interfaces</span>
           </div>
         </div>
@@ -158,7 +158,7 @@ export const InterfaceLanding: React.FC = () => {
 
       {/* Footer */}
       <footer className="z-10 max-w-5xl mx-auto w-full text-center text-xs text-surface-500 pt-4 border-t border-surface-800/60">
-        <p>MeetGuard AI — Enterprise Meeting-to-Accountability Platform. Built for KPR Hack the Horizon 2.0.</p>
+        <p>Memora AI — Enterprise Meeting-to-Accountability Platform. Built for KPR Hack the Horizon 2.0.</p>
       </footer>
     </div>
   );

@@ -60,11 +60,11 @@ export default function ActionsPage() {
             onClick={() => setStatusFilter(s)}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors border ${
               statusFilter === s
-                ? 'bg-brand-500/20 text-brand-300 border-brand-500/30'
-                : 'text-surface-400 border-surface-700 hover:text-surface-200 hover:border-surface-600'
+                ? 'bg-brand-50 text-brand-700 border-brand-300 font-semibold shadow-xs'
+                : 'bg-white text-slate-600 border-slate-200 hover:text-slate-900 hover:bg-slate-50'
             }`}
           >
-            {s === 'ALL' ? `All (${actions.length > 0 ? '' : '0'})` : s.replace('_', ' ')}
+            {s === 'ALL' ? `All (${actions.length})` : s.replace('_', ' ')}
           </button>
         ))}
       </div>

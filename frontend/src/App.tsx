@@ -70,6 +70,7 @@ export default function App() {
             <Route path="meetings/new" element={<NewMeetingPage />} />
             <Route path="meetings/wizard" element={<NewMeetingWizard />} />
             <Route path="meetings/record" element={<RecordMeeting />} />
+            <Route path="record" element={<RecordMeeting />} />
             <Route path="meetings/:id" element={<MeetingDetailPage />} />
             <Route path="actions" element={<ActionsPage />} />
             <Route path="decisions" element={<DecisionsPage />} />

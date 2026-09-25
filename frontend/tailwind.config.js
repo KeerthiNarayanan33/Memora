@@ -7,7 +7,7 @@ export default {
   theme: {
     extend: {
       colors: {
-        // MeetGuard AI Design System
+        // MeetGuard AI Design System — Modern Attractive Light Theme
         brand: {
           50:  '#eff6ff',
           100: '#dbeafe',
@@ -22,25 +22,25 @@ export default {
           950: '#172554',
         },
         surface: {
-          50:  '#f8fafc',
-          100: '#f1f5f9',
-          200: '#e2e8f0',
-          300: '#cbd5e1',
-          400: '#94a3b8',
-          500: '#64748b',
-          600: '#475569',
-          700: '#334155',
-          800: '#1e293b',
-          900: '#0f172a',
-          950: '#020617',
+          50:  '#020617', // Boldest titles
+          100: '#0f172a', // Primary headings & text
+          200: '#1e293b', // Subheadings & body text
+          300: '#334155', // Secondary body text
+          400: '#475569', // Muted labels
+          500: '#64748b', // Captions & subtle text
+          600: '#cbd5e1', // Input borders & active outlines
+          700: '#e2e8f0', // Standard card & table borders
+          800: '#ffffff', // Card & modal backgrounds
+          900: '#ffffff', // Header & sidebar backgrounds
+          950: '#f8fafc', // Main page background (airy, clean light)
         },
         status: {
-          new:         '#3b82f6',
-          'in-progress': '#f59e0b',
-          completed:   '#10b981',
-          overdue:     '#ef4444',
-          unresolved:  '#f97316',
-          'carried-over': '#8b5cf6',
+          new:         '#2563eb',
+          'in-progress': '#d97706',
+          completed:   '#059669',
+          overdue:     '#dc2626',
+          unresolved:  '#ea580c',
+          'carried-over': '#7c3aed',
         }
       },
       fontFamily: {
@@ -66,9 +66,10 @@ export default {
         },
       },
       boxShadow: {
-        'card': '0 1px 3px 0 rgb(0 0 0 / 0.12), 0 1px 2px -1px rgb(0 0 0 / 0.12)',
-        'card-hover': '0 4px 12px 0 rgb(0 0 0 / 0.18), 0 2px 4px -2px rgb(0 0 0 / 0.12)',
-        'elevated': '0 10px 40px -10px rgb(0 0 0 / 0.25)',
+        'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.04)',
+        'card': '0 1px 3px 0 rgba(0, 0, 0, 0.06), 0 1px 2px -1px rgba(0, 0, 0, 0.04)',
+        'card-hover': '0 10px 25px -5px rgba(0, 0, 0, 0.08), 0 8px 10px -6px rgba(0, 0, 0, 0.04)',
+        'elevated': '0 20px 35px -10px rgba(0, 0, 0, 0.1)',
       },
     },
   },

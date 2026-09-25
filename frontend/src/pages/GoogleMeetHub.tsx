@@ -77,43 +77,43 @@ export const GoogleMeetHub: React.FC = () => {
               Local AI Engine Enforced
             </span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white tracking-tight">
+          <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 tracking-tight">
             Google Meet & Online Meetings
           </h1>
-          <p className="text-sm text-surface-400 mt-1">
+          <p className="text-sm text-slate-500 mt-1">
             Import online meetings while retaining 100% of your AI intelligence processing inside your local Llama model.
           </p>
         </div>
       </div>
 
       {/* Visual Pipeline Architecture Graphic */}
-      <div className="card p-6 bg-gradient-to-r from-surface-900 via-surface-900 to-surface-850 border-surface-700">
-        <h2 className="text-xs font-semibold text-surface-400 uppercase tracking-wider mb-4">
+      <div className="card p-6 bg-white border-slate-200 shadow-xs">
+        <h2 className="text-xs font-bold text-slate-600 uppercase tracking-wider mb-4">
           Online Meeting Intelligence Data Flow
         </h2>
         <div className="grid grid-cols-2 md:grid-cols-6 gap-2 items-center text-center">
-          <div className="p-3 rounded-xl bg-purple-500/10 border border-purple-500/20">
-            <Video className="w-5 h-5 text-purple-400 mx-auto mb-1" />
-            <div className="text-xs font-bold text-white">Google Meet</div>
-            <div className="text-2xs text-surface-400">Online Source</div>
+          <div className="p-3 rounded-xl bg-purple-50 border border-purple-200">
+            <Video className="w-5 h-5 text-purple-600 mx-auto mb-1" />
+            <div className="text-xs font-bold text-slate-800">Google Meet</div>
+            <div className="text-2xs text-slate-500">Online Source</div>
           </div>
-          <div className="text-surface-600 hidden md:block text-sm">→</div>
-          <div className="p-3 rounded-xl bg-brand-500/10 border border-brand-500/20">
-            <Cpu className="w-5 h-5 text-brand-400 mx-auto mb-1" />
-            <div className="text-xs font-bold text-brand-300">Local Llama</div>
-            <div className="text-2xs text-emerald-400 font-semibold">On-Device AI</div>
+          <div className="text-slate-400 hidden md:block text-sm">→</div>
+          <div className="p-3 rounded-xl bg-blue-50 border border-blue-200">
+            <Cpu className="w-5 h-5 text-blue-600 mx-auto mb-1" />
+            <div className="text-xs font-bold text-blue-700">Local Llama</div>
+            <div className="text-2xs text-emerald-600 font-semibold">On-Device AI</div>
           </div>
-          <div className="text-surface-600 hidden md:block text-sm">→</div>
-          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <Shield className="w-5 h-5 text-amber-400 mx-auto mb-1" />
-            <div className="text-xs font-bold text-white">Zero-Hallucination</div>
-            <div className="text-2xs text-surface-400">Evidence Verify</div>
+          <div className="text-slate-400 hidden md:block text-sm">→</div>
+          <div className="p-3 rounded-xl bg-amber-50 border border-amber-200">
+            <Shield className="w-5 h-5 text-amber-600 mx-auto mb-1" />
+            <div className="text-xs font-bold text-slate-800">Zero-Hallucination</div>
+            <div className="text-2xs text-slate-500">Evidence Verify</div>
           </div>
-          <div className="text-surface-600 hidden md:block text-sm">→</div>
-          <div className="p-3 rounded-xl bg-blue-500/10 border border-blue-500/20">
-            <Database className="w-5 h-5 text-blue-400 mx-auto mb-1" />
-            <div className="text-xs font-bold text-white">{storageMode.replace('_', ' ')}</div>
-            <div className="text-2xs text-surface-400">Storage Policy</div>
+          <div className="text-slate-400 hidden md:block text-sm">→</div>
+          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+            <Database className="w-5 h-5 text-emerald-600 mx-auto mb-1" />
+            <div className="text-xs font-bold text-slate-800">{storageMode.replace('_', ' ')}</div>
+            <div className="text-2xs text-slate-500">Storage Policy</div>
           </div>
         </div>
       </div>
@@ -121,10 +121,10 @@ export const GoogleMeetHub: React.FC = () => {
       {/* Provider Selector Tabs */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
-          { id: 'GOOGLE_MEET', label: 'Google Meet', icon: Video, color: 'text-purple-400' },
-          { id: 'MICROSOFT_TEAMS', label: 'Microsoft Teams', icon: Video, color: 'text-blue-400' },
-          { id: 'ONEDRIVE', label: 'OneDrive Vault', icon: Cloud, color: 'text-indigo-400' },
-          { id: 'UPLOADED_RECORDING', label: 'Online Audio Upload', icon: UploadCloud, color: 'text-emerald-400' },
+          { id: 'GOOGLE_MEET', label: 'Google Meet', icon: Video, color: 'text-purple-600' },
+          { id: 'MICROSOFT_TEAMS', label: 'Microsoft Teams', icon: Video, color: 'text-blue-600' },
+          { id: 'ONEDRIVE', label: 'OneDrive Vault', icon: Cloud, color: 'text-indigo-600' },
+          { id: 'UPLOADED_RECORDING', label: 'Online Audio Upload', icon: UploadCloud, color: 'text-emerald-600' },
         ].map((prov) => {
           const Icon = prov.icon;
           const isSelected = selectedProvider === prov.id;
@@ -134,39 +134,39 @@ export const GoogleMeetHub: React.FC = () => {
               onClick={() => setSelectedProvider(prov.id as any)}
               className={`p-4 rounded-xl border text-left transition-all ${
                 isSelected
-                  ? 'bg-surface-800 border-purple-500/60 shadow-lg shadow-purple-500/10'
-                  : 'bg-surface-900 border-surface-700/60 hover:border-surface-600'
+                  ? 'bg-purple-50/60 border-purple-400 shadow-sm'
+                  : 'bg-white border-slate-200 hover:border-slate-300 shadow-xs'
               }`}
             >
               <Icon className={`w-5 h-5 mb-2 ${prov.color}`} />
-              <div className="text-sm font-semibold text-white">{prov.label}</div>
-              <div className="text-2xs text-surface-400">Provider Abstraction</div>
+              <div className="text-sm font-bold text-slate-900">{prov.label}</div>
+              <div className="text-2xs text-slate-500">Provider Abstraction</div>
             </button>
           );
         })}
       </div>
 
       {/* Honest Provider Status Alert */}
-      <div className="bg-surface-900 border border-surface-700 p-4 rounded-xl flex items-start gap-3">
-        <AlertCircle className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+      <div className="bg-amber-50/70 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
+        <AlertCircle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
         <div className="text-xs space-y-1">
-          <div className="font-semibold text-surface-200">
-            Provider Integration Status: <span className="text-amber-300">{activeProvider.name}</span>
+          <div className="font-bold text-slate-800">
+            Provider Integration Status: <span className="text-amber-800 font-semibold">{activeProvider.name}</span>
           </div>
-          <p className="text-surface-400">
+          <p className="text-slate-600">
             {activeProvider.status_message}
           </p>
-          <p className="text-surface-400">
-            You can use the <strong className="text-white">Import Meeting Recording / URL</strong> workflow below to test and demo the complete online intelligence pipeline.
+          <p className="text-slate-600">
+            You can use the <strong className="text-slate-900 font-bold">Import Meeting Recording / URL</strong> workflow below to test and demo the complete online intelligence pipeline.
           </p>
         </div>
       </div>
 
       {/* Import Form */}
-      <form onSubmit={handleImport} className="card p-6 md:p-8 space-y-6 border-surface-700">
-        <h3 className="text-lg font-bold text-white flex items-center gap-2">
+      <form onSubmit={handleImport} className="card p-6 md:p-8 space-y-6 border-slate-200 bg-white shadow-xs">
+        <h3 className="text-lg font-bold text-slate-900 flex items-center gap-2">
           <span>Import Online Meeting into Local Intelligence</span>
-          <span className="badge bg-purple-500/20 text-purple-300 text-2xs">Live Workflow</span>
+          <span className="badge bg-purple-50 text-purple-700 border border-purple-200 text-2xs font-semibold">Live Workflow</span>
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -218,8 +218,8 @@ export const GoogleMeetHub: React.FC = () => {
         </div>
 
         {/* 3-Axis Settings Display */}
-        <div className="bg-surface-950 p-4 rounded-xl border border-surface-800 space-y-4">
-          <div className="text-xs font-semibold text-surface-300 uppercase tracking-wider">
+        <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 space-y-4">
+          <div className="text-xs font-bold text-slate-700 uppercase tracking-wider">
             Enterprise Confinement Settings
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

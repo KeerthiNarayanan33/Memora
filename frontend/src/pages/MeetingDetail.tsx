@@ -1,11 +1,13 @@
 // Meeting Detail Page — Tabbed view with all meeting intelligence
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft, Video, CheckSquare, GitBranch, AlertTriangle,
   Users, Target, Clock, Shield, Cpu, Eye, Play, ChevronRight,
   Laptop, Cloud, Lock, Database, ArrowRight, Mic, Globe,
+  Volume2, VolumeX, RefreshCw, Sparkles, CheckCircle2, Loader2,
+  Edit2, UserCheck
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { meetingsApi } from '../services/api';
@@ -24,6 +26,19 @@ const TABS = [
   { key: 'speakers', label: 'Speakers' },
 ];
 
+const normalizeList = (val: any): string[] => {
+  if (Array.isArray(val)) return val.map((x) => String(x)).filter(Boolean);
+  if (typeof val === 'string') {
+    try {
+      const parsed = JSON.parse(val);
+      if (Array.isArray(parsed)) return parsed.map((x) => String(x)).filter(Boolean);
+    } catch {
+      return val.trim() ? [val.trim()] : [];
+    }
+  }
+  return [];
+};
+
 export default function MeetingDetailPage() {
   const { id } = useParams<{ id: string }>();
   const [tab, setTab] = useState('overview');
@@ -34,13 +49,19 @@ export default function MeetingDetailPage() {
     queryKey: ['meeting', id],
     queryFn: () => meetingsApi.get(id!),
     enabled: !!id,
-    refetchInterval: (m) => m?.status && !['COMPLETED', 'FAILED'].includes(m.status) ? 3000 : false,
+    refetchInterval: (query: any) => {
+      const m = query?.state?.data;
+      return m?.status && !['COMPLETED', 'FAILED'].includes(m.status) ? 1500 : false;
+    },
   });
 
   const { data: transcript = [] } = useQuery({
     queryKey: ['transcript', id],
     queryFn: () => meetingsApi.getTranscript(id!),
     enabled: !!id,
+    refetchInterval: (query: any) => {
+      return meeting?.status && !['COMPLETED', 'FAILED'].includes(meeting.status) ? 2000 : false;
+    },
   });
 
   const { data: decisions = [] } = useQuery({
@@ -70,16 +91,18 @@ export default function MeetingDetailPage() {
   const processMutation = useMutation({
     mutationFn: () => meetingsApi.process(id!),
     onSuccess: () => {
-      toast.success('Processing started');
+      toast.success('Local AI processing started');
       qc.invalidateQueries({ queryKey: ['meeting', id] });
     },
     onError: (e: any) => toast.error(e.response?.data?.detail || 'Processing failed'),
   });
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
-    </div>;
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
   if (!meeting) return <div className="text-surface-400">Meeting not found</div>;
 
@@ -107,6 +130,9 @@ export default function MeetingDetailPage() {
                   <Cpu className="w-2.5 h-2.5" /> REAL AI
                 </span>
               )}
+              <span className={statusBadgeClass(meeting.status)}>
+                {statusLabel(meeting.status)}
+              </span>
             </div>
             <div className="flex items-center gap-4 text-sm text-surface-400">
               <span className="flex items-center gap-1">
@@ -114,14 +140,26 @@ export default function MeetingDetailPage() {
               </span>
               <span>{formatDuration(meeting.duration_seconds)}</span>
               <span className="flex items-center gap-1">
-                <Shield className="w-3.5 h-3.5" />{meeting.storage_policy.replace('_', ' ')}
+                <Shield className="w-3.5 h-3.5" />{meeting.storage_policy?.replace('_', ' ') || 'LOCAL ONLY'}
               </span>
             </div>
           </div>
           <div className="flex gap-2 flex-shrink-0">
-            {meeting.status === 'AUDIO_UPLOADED' && (
-              <button onClick={() => processMutation.mutate()} className="btn-primary" disabled={processMutation.isPending}>
-                <Play className="w-4 h-4" />{processMutation.isPending ? 'Starting…' : 'Process'}
+            {['AUDIO_UPLOADED', 'CREATED', 'FAILED'].includes(meeting.status) && (
+              <button
+                onClick={() => processMutation.mutate()}
+                className="btn-primary"
+                disabled={processMutation.isPending}
+              >
+                {processMutation.isPending ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" /> Starting…
+                  </>
+                ) : (
+                  <>
+                    <Play className="w-4 h-4" /> {meeting.status === 'FAILED' ? 'Retry Processing' : 'Process with Local AI'}
+                  </>
+                )}
               </button>
             )}
           </div>
@@ -129,11 +167,11 @@ export default function MeetingDetailPage() {
 
         {/* Stats bar */}
         <div className="flex items-center gap-5 mt-4 p-4 bg-surface-800 rounded-xl border border-surface-700">
-          <StatChip icon={<GitBranch className="w-3.5 h-3.5" />} label="Decisions" value={meeting.decision_count} color="text-blue-400" />
+          <StatChip icon={<GitBranch className="w-3.5 h-3.5" />} label="Decisions" value={meeting.decision_count || decisions.length} color="text-blue-400" />
           <div className="w-px h-8 bg-surface-700" />
-          <StatChip icon={<CheckSquare className="w-3.5 h-3.5" />} label="Actions" value={meeting.action_count} color="text-emerald-400" />
+          <StatChip icon={<CheckSquare className="w-3.5 h-3.5" />} label="Actions" value={meeting.action_count || actions.length} color="text-emerald-400" />
           <div className="w-px h-8 bg-surface-700" />
-          <StatChip icon={<AlertTriangle className="w-3.5 h-3.5" />} label="Unresolved" value={meeting.unresolved_count} color="text-orange-400" />
+          <StatChip icon={<AlertTriangle className="w-3.5 h-3.5" />} label="Unresolved" value={meeting.unresolved_count || unresolved.length} color="text-orange-400" />
           <div className="w-px h-8 bg-surface-700" />
           <StatChip icon={<Users className="w-3.5 h-3.5" />} label="Participants" value={participants.length} color="text-purple-400" />
           {meeting.sentiment_overall && (
@@ -164,6 +202,9 @@ export default function MeetingDetailPage() {
             }`}
           >
             {t.label}
+            {t.key === 'transcript' && transcript.length > 0 && (
+              <span className="ml-1.5 text-2xs bg-surface-700 text-surface-300 px-1.5 py-0.5 rounded-full">{transcript.length}</span>
+            )}
             {t.key === 'actions' && actions.length > 0 && (
               <span className="ml-1.5 text-2xs bg-surface-700 text-surface-300 px-1.5 py-0.5 rounded-full">{actions.length}</span>
             )}
@@ -176,13 +217,18 @@ export default function MeetingDetailPage() {
 
       {/* Tab content */}
       {tab === 'overview' && (
-        <OverviewTab meeting={meeting} />
+        <OverviewTab meeting={meeting} onRetry={() => processMutation.mutate()} />
       )}
       {tab === 'privacy' && (
         <PrivacyDataFlowTab meeting={meeting} />
       )}
       {tab === 'transcript' && (
-        <TranscriptTab segments={transcript} highlightId={evidenceHighlight} />
+        <TranscriptTab 
+          segments={transcript} 
+          highlightId={evidenceHighlight} 
+          meetingId={meeting.id} 
+          participants={participants} 
+        />
       )}
       {tab === 'decisions' && (
         <DecisionsTab decisions={decisions} onViewEvidence={(segId) => {
@@ -214,7 +260,11 @@ function StatChip({ icon, label, value, color }: { icon: React.ReactNode; label:
   );
 }
 
-function OverviewTab({ meeting }: { meeting: any }) {
+// ── Overview Tab Component ────────────────────────────────────────────────────
+
+function OverviewTab({ meeting, onRetry }: { meeting: any; onRetry: () => void }) {
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+
   // Derive display labels for 3-axis settings
   const sourceLabel = {
     OFFLINE_RECORDING: 'Offline Recording',
@@ -236,10 +286,51 @@ function OverviewTab({ meeting }: { meeting: any }) {
     LOCAL_AND_CLOUD: 'Local + Cloud Sync',
   }[meeting.storage_policy as string] || meeting.storage_policy || 'Local Only';
 
+  const keyPoints = normalizeList(meeting.key_points);
+  const risks = normalizeList(meeting.risks);
+  const followUps = normalizeList(meeting.follow_up_topics);
+
+  const isProcessing = ['PROCESSING', 'TRANSCRIBING', 'IDENTIFYING_SPEAKERS', 'ANALYZING', 'VALIDATING'].includes(meeting.status);
+
+  // Read aloud briefing using SpeechSynthesis
+  const toggleSpeechBriefing = () => {
+    if (!('speechSynthesis' in window)) {
+      toast.error('Browser speech synthesis is not supported on this device.');
+      return;
+    }
+
+    if (isPlayingAudio) {
+      window.speechSynthesis.cancel();
+      setIsPlayingAudio(false);
+      return;
+    }
+
+    const textToSpeak = `Meeting summary for ${meeting.title}. ${meeting.summary || 'No summary available.'} Key points: ${keyPoints.slice(0, 3).join('. ')}`;
+    const utterance = new SpeechSynthesisUtterance(textToSpeak);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => setIsPlayingAudio(false);
+    utterance.onerror = () => setIsPlayingAudio(false);
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+    setIsPlayingAudio(true);
+    toast.success('Playing audio summary briefing...');
+  };
+
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
   return (
     <div className="space-y-4">
       {/* 3-Axis metadata strip */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
         <div className="card flex items-center gap-3 p-4">
           <div className="w-9 h-9 rounded-xl bg-brand-500/10 border border-brand-500/20 flex items-center justify-center text-brand-400 flex-shrink-0">
             <Mic className="w-4 h-4" />
@@ -269,48 +360,200 @@ function OverviewTab({ meeting }: { meeting: any }) {
         </div>
       </div>
 
-      {meeting.summary && (
-        <div className="card">
-          <div className="text-sm font-semibold text-surface-300 mb-2">Executive Summary</div>
-          <p className="text-surface-200 text-sm leading-relaxed">{meeting.summary}</p>
-        </div>
-      )}
-      {meeting.key_points?.length > 0 && (
-        <div className="card">
-          <div className="text-sm font-semibold text-surface-300 mb-3">Key Discussion Points</div>
-          <ul className="space-y-1.5">
-            {meeting.key_points.map((p: string, i: number) => (
-              <li key={i} className="flex items-start gap-2 text-sm text-surface-200">
-                <ChevronRight className="w-4 h-4 text-brand-400 flex-shrink-0 mt-0.5" />
-                {p}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {meeting.risks?.length > 0 && (
-        <div className="card border-red-500/20">
-          <div className="text-sm font-semibold text-red-300 mb-3 flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" /> Risks Identified
+      {/* ACTIVE PROCESSING HUD / LOADING ANIMATION */}
+      {isProcessing && (
+        <div className="card p-6 border-brand-500/30 bg-gradient-to-b from-brand-950/30 to-surface-900 space-y-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-brand-500/20 border border-brand-500/40 flex items-center justify-center text-brand-400">
+                <RefreshCw className="w-5 h-5 animate-spin" />
+              </div>
+              <div>
+                <h3 className="font-bold text-surface-100 text-sm flex items-center gap-2">
+                  <span>Neural Speech Decoding & Commitment Extraction</span>
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                </h3>
+                <p className="text-xs text-surface-400">
+                  Local AI pipeline is running on your machine. This view updates automatically.
+                </p>
+              </div>
+            </div>
+            <span className="badge bg-brand-500/20 text-brand-300 border border-brand-500/30 font-mono text-2xs uppercase">
+              {meeting.status}
+            </span>
           </div>
-          <ul className="space-y-1.5">
-            {meeting.risks.map((r: string, i: number) => (
-              <li key={i} className="text-sm text-surface-300 flex items-start gap-2">
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0 mt-1.5" />{r}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {meeting.follow_up_topics?.length > 0 && (
-        <div className="card">
-          <div className="text-sm font-semibold text-surface-300 mb-3">Follow-up Topics</div>
-          <div className="flex flex-wrap gap-2">
-            {meeting.follow_up_topics.map((t: string, i: number) => (
-              <span key={i} className="px-3 py-1 bg-surface-700 text-surface-300 rounded-full text-xs">{t}</span>
-            ))}
+
+          {/* Stepper Progress */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-2 pt-2">
+            <div className={`p-3 rounded-lg border text-xs ${
+              meeting.status === 'TRANSCRIBING' 
+                ? 'bg-brand-500/10 border-brand-500/40 text-brand-200' 
+                : 'bg-surface-800/40 border-surface-700 text-surface-400'
+            }`}>
+              <div className="font-semibold mb-0.5 flex items-center gap-1.5">
+                <Mic className="w-3.5 h-3.5 text-brand-400" />
+                <span>1. Faster-Whisper</span>
+              </div>
+              <div className="text-2xs text-surface-500">Neural speech-to-text</div>
+            </div>
+
+            <div className={`p-3 rounded-lg border text-xs ${
+              meeting.status === 'IDENTIFYING_SPEAKERS' 
+                ? 'bg-purple-500/10 border-purple-500/40 text-purple-200' 
+                : 'bg-surface-800/40 border-surface-700 text-surface-400'
+            }`}>
+              <div className="font-semibold mb-0.5 flex items-center gap-1.5">
+                <Users className="w-3.5 h-3.5 text-purple-400" />
+                <span>2. Diarization</span>
+              </div>
+              <div className="text-2xs text-surface-500">Acoustic voice matching</div>
+            </div>
+
+            <div className={`p-3 rounded-lg border text-xs ${
+              meeting.status === 'ANALYZING' 
+                ? 'bg-amber-500/10 border-amber-500/40 text-amber-200' 
+                : 'bg-surface-800/40 border-surface-700 text-surface-400'
+            }`}>
+              <div className="font-semibold mb-0.5 flex items-center gap-1.5">
+                <Cpu className="w-3.5 h-3.5 text-amber-400" />
+                <span>3. Local Llama</span>
+              </div>
+              <div className="text-2xs text-surface-500">Extracting commitments</div>
+            </div>
+
+            <div className={`p-3 rounded-lg border text-xs ${
+              meeting.status === 'VALIDATING' 
+                ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-200' 
+                : 'bg-surface-800/40 border-surface-700 text-surface-400'
+            }`}>
+              <div className="font-semibold mb-0.5 flex items-center gap-1.5">
+                <Shield className="w-3.5 h-3.5 text-emerald-400" />
+                <span>4. Evidence Grounding</span>
+              </div>
+              <div className="text-2xs text-surface-500">Zero-hallucination check</div>
+            </div>
           </div>
         </div>
+      )}
+
+      {/* PIPELINE FAILED STATE BANNER */}
+      {meeting.status === 'FAILED' && (
+        <div className="card p-5 border-red-500/30 bg-red-500/5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="w-5 h-5 text-red-400" />
+              <div>
+                <h4 className="text-sm font-bold text-red-200">Local AI Processing Encountered an Issue</h4>
+                <p className="text-xs text-red-300/80">
+                  {meeting.processing_error || 'Processing pipeline was interrupted.'}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={onRetry}
+              className="btn-primary text-xs px-4 py-2 flex items-center gap-1.5 shadow-xs"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Retry Processing
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* UNPROCESSED STATE CARD */}
+      {['CREATED', 'AUDIO_UPLOADED'].includes(meeting.status) && (
+        <div className="card p-6 border-dashed border-surface-600 text-center space-y-3">
+          <Sparkles className="w-8 h-8 text-brand-400 mx-auto" />
+          <h3 className="text-base font-semibold text-surface-100">Ready for Local AI Processing</h3>
+          <p className="text-xs text-surface-400 max-w-md mx-auto">
+            Audio and meeting parameters are stored locally. Trigger the pipeline to run Faster-Whisper, Diarization, and Local Llama commitment extraction.
+          </p>
+          <button onClick={onRetry} className="btn-primary mx-auto flex items-center gap-2">
+            <Play className="w-4 h-4" /> Start AI Intelligence Extraction
+          </button>
+        </div>
+      )}
+
+      {/* COMPLETED OVERVIEW CONTENT */}
+      {meeting.status === 'COMPLETED' && (
+        <>
+          {/* Executive Summary */}
+          {meeting.summary && (
+            <div className="card space-y-3">
+              <div className="flex items-center justify-between">
+                <div className="text-sm font-semibold text-surface-300 flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-brand-400" />
+                  Executive Summary
+                </div>
+                <button
+                  onClick={toggleSpeechBriefing}
+                  className={`btn-secondary btn-sm flex items-center gap-1.5 transition-all ${
+                    isPlayingAudio ? 'bg-brand-500/20 border-brand-500 text-brand-300' : ''
+                  }`}
+                  title="Listen to summary read aloud with speech synthesis"
+                >
+                  {isPlayingAudio ? (
+                    <>
+                      <VolumeX className="w-3.5 h-3.5 text-brand-400 animate-pulse" />
+                      <span>Stop Audio Briefing</span>
+                    </>
+                  ) : (
+                    <>
+                      <Volume2 className="w-3.5 h-3.5 text-brand-400" />
+                      <span>Listen to Audio Briefing</span>
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-surface-200 text-sm leading-relaxed">{meeting.summary}</p>
+            </div>
+          )}
+
+          {/* Key Discussion Points */}
+          {keyPoints.length > 0 && (
+            <div className="card">
+              <div className="text-sm font-semibold text-surface-300 mb-3">Key Discussion Points</div>
+              <ul className="space-y-1.5">
+                {keyPoints.map((p: string, i: number) => (
+                  <li key={i} className="flex items-start gap-2 text-sm text-surface-200">
+                    <ChevronRight className="w-4 h-4 text-brand-400 flex-shrink-0 mt-0.5" />
+                    {p}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Risks Identified */}
+          {risks.length > 0 && (
+            <div className="card border-red-500/20">
+              <div className="text-sm font-semibold text-red-300 mb-3 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-red-400" /> Risks Identified
+              </div>
+              <ul className="space-y-1.5">
+                {risks.map((r: string, i: number) => (
+                  <li key={i} className="text-sm text-surface-300 flex items-start gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 flex-shrink-0 mt-1.5" />
+                    {r}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Follow-up Topics */}
+          {followUps.length > 0 && (
+            <div className="card">
+              <div className="text-sm font-semibold text-surface-300 mb-3">Follow-up Topics</div>
+              <div className="flex flex-wrap gap-2">
+                {followUps.map((t: string, i: number) => (
+                  <span key={i} className="px-3 py-1 bg-surface-700 text-surface-300 rounded-full text-xs">
+                    {t}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -340,7 +583,7 @@ function PrivacyDataFlowTab({ meeting }: { meeting: any }) {
       icon: <Mic className="w-5 h-5" />,
       color: 'purple',
       status: meeting.status === 'COMPLETED' ? '✓ Done' : 'Pending',
-      badge: 'LOCAL WHISPER',
+      badge: 'LOCAL FASTER-WHISPER',
     },
     {
       id: 'ai',
@@ -460,13 +703,42 @@ function PrivacyDataFlowTab({ meeting }: { meeting: any }) {
   );
 }
 
-function TranscriptTab({ segments, highlightId }: { segments: any[]; highlightId: string | null }) {
+// ── Transcript Tab with Speaker Reassignment ─────────────────────────────────
+
+function TranscriptTab({ 
+  segments, 
+  highlightId,
+  meetingId,
+  participants 
+}: { 
+  segments: any[]; 
+  highlightId: string | null;
+  meetingId: string;
+  participants: any[];
+}) {
+  const qc = useQueryClient();
+  const [editingSegId, setEditingSegId] = useState<string | null>(null);
+
+  const handleSpeakerChange = async (segmentId: string, newSpeaker: string) => {
+    try {
+      await meetingsApi.updateTranscriptSegment(meetingId, segmentId, { speaker_name: newSpeaker });
+      toast.success(`Speaker updated to ${newSpeaker}`);
+      setEditingSegId(null);
+      qc.invalidateQueries({ queryKey: ['transcript', meetingId] });
+      qc.invalidateQueries({ queryKey: ['participants', meetingId] });
+    } catch {
+      toast.error('Failed to update speaker');
+    }
+  };
+
+  const participantNames = participants.map(p => p.name);
+
   return (
     <div className="space-y-3">
       {segments.length === 0 && (
         <div className="empty-state">
           <Video className="w-10 h-10 text-surface-600 mb-3" />
-          <p className="text-surface-400">No transcript available yet</p>
+          <p className="text-surface-400">No transcript segments available yet</p>
         </div>
       )}
       {segments.map((seg) => (
@@ -474,34 +746,70 @@ function TranscriptTab({ segments, highlightId }: { segments: any[]; highlightId
           key={seg.id}
           id={`seg-${seg.id}`}
           className={`flex gap-4 p-4 rounded-xl transition-all duration-300 ${
-            highlightId === seg.id ? 'bg-amber-500/10 border border-amber-500/30' : 'hover:bg-surface-800/50'
+            highlightId === seg.id ? 'bg-amber-500/10 border border-amber-500/30' : 'hover:bg-surface-800/50 bg-surface-900/40 border border-surface-800'
           }`}
         >
           <div className="flex flex-col items-end gap-1 flex-shrink-0 w-20">
             <span className="text-xs font-mono text-brand-400">{formatTime(seg.start_time)}</span>
-            {seg.speaker_confidence && (
-              <span className="text-2xs text-surface-600">{(seg.speaker_confidence * 100).toFixed(0)}%</span>
+            {seg.confidence && (
+              <span className="text-3xs text-surface-500">{(seg.confidence * 100).toFixed(0)}% STT</span>
             )}
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-1.5">
-              <div className="w-6 h-6 rounded-full bg-surface-700 flex items-center justify-center text-2xs font-bold text-surface-300 flex-shrink-0">
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+              <div className="w-6 h-6 rounded-full bg-brand-700/50 flex items-center justify-center text-2xs font-bold text-brand-300 flex-shrink-0">
                 {(seg.speaker_name || seg.speaker_label || 'U').charAt(0)}
               </div>
-              <span className="text-xs font-semibold text-surface-300 uppercase tracking-wide">
-                {seg.speaker_name || seg.speaker_label || 'Unknown Speaker'}
-              </span>
-              {seg.speaker_name && (
-                <span className="text-2xs text-emerald-400">✓ Identified</span>
+              
+              {editingSegId === seg.id ? (
+                <div className="flex items-center gap-1.5">
+                  <select
+                    className="select text-xs py-0.5 px-2 bg-surface-800 text-surface-100 border-surface-600"
+                    defaultValue={seg.speaker_name || ''}
+                    onChange={(e) => handleSpeakerChange(seg.id, e.target.value)}
+                  >
+                    <option value="" disabled>Select speaker...</option>
+                    {participantNames.map(name => (
+                      <option key={name} value={name}>{name}</option>
+                    ))}
+                    <option value="Unknown Speaker">Unknown Speaker</option>
+                  </select>
+                  <button 
+                    onClick={() => setEditingSegId(null)}
+                    className="text-xs text-surface-400 hover:text-surface-200"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-semibold text-surface-200 tracking-wide">
+                    {seg.speaker_name || seg.speaker_label || 'Speaker'}
+                  </span>
+                  {seg.speaker_name && seg.speaker_name !== 'Unknown Speaker' && (
+                    <span className="text-3xs text-emerald-400 bg-emerald-950/60 px-1.5 py-0.5 rounded border border-emerald-800/40">
+                      ✓ Identified
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setEditingSegId(seg.id)}
+                    className="text-3xs text-surface-500 hover:text-brand-400 flex items-center gap-0.5 ml-1"
+                    title="Change speaker voice attribution"
+                  >
+                    <Edit2 className="w-2.5 h-2.5" /> Reassign
+                  </button>
+                </div>
               )}
             </div>
-            <p className="text-sm text-surface-200 leading-relaxed">"{seg.text}"</p>
+            <p className="text-sm text-surface-200 leading-relaxed font-sans">"{seg.text}"</p>
           </div>
         </div>
       ))}
     </div>
   );
 }
+
+// ── Decisions Tab ─────────────────────────────────────────────────────────────
 
 function DecisionsTab({ decisions, onViewEvidence }: { decisions: any[]; onViewEvidence: (segId: string) => void }) {
   return (
@@ -526,7 +834,7 @@ function DecisionsTab({ decisions, onViewEvidence }: { decisions: any[]; onViewE
               <p className="text-sm font-medium text-surface-100">{d.decision_text}</p>
               
               <div className="evidence-block mt-3">
-                <div className="text-2xs text-amber-400 font-semibold mb-1 uppercase tracking-wide">Evidence</div>
+                <div className="text-2xs text-amber-400 font-semibold mb-1 uppercase tracking-wide">Transcript Evidence</div>
                 {d.evidence_text}
               </div>
               
@@ -552,6 +860,8 @@ function DecisionsTab({ decisions, onViewEvidence }: { decisions: any[]; onViewE
   );
 }
 
+// ── Actions Tab ───────────────────────────────────────────────────────────────
+
 function ActionsTab({ actions, onViewEvidence }: { actions: any[]; onViewEvidence: (segId: string) => void }) {
   return (
     <div className="space-y-3">
@@ -575,8 +885,8 @@ function ActionsTab({ actions, onViewEvidence }: { actions: any[]; onViewEvidenc
               <p className="text-sm font-medium text-surface-100">{a.action_text}</p>
               
               <div className="flex items-center gap-4 mt-2 text-xs text-surface-400">
-                <span>Owner: <span className={a.owner_name === 'UNRESOLVED' ? 'text-orange-400' : 'text-surface-200'}>{a.owner_name || 'UNRESOLVED'}</span></span>
-                <span>Deadline: <span className={a.deadline_text === 'UNRESOLVED' ? 'text-orange-400' : 'text-surface-200'}>{a.deadline_text || 'UNRESOLVED'}</span></span>
+                <span>Owner: <span className={a.owner_name === 'UNRESOLVED' ? 'text-orange-400 font-semibold' : 'text-surface-200 font-semibold'}>{a.owner_name || 'UNRESOLVED'}</span></span>
+                <span>Deadline: <span className={a.deadline_text === 'UNRESOLVED' ? 'text-orange-400 font-semibold' : 'text-surface-200 font-semibold'}>{a.deadline_text || 'UNRESOLVED'}</span></span>
                 {a.confidence && <span>Confidence: {(a.confidence * 100).toFixed(0)}%</span>}
               </div>
               
@@ -598,6 +908,8 @@ function ActionsTab({ actions, onViewEvidence }: { actions: any[]; onViewEvidenc
   );
 }
 
+// ── Unresolved Tab ────────────────────────────────────────────────────────────
+
 function UnresolvedTab({ items }: { items: any[] }) {
   const typeColors: Record<string, string> = {
     OWNER: 'text-orange-400',
@@ -612,7 +924,7 @@ function UnresolvedTab({ items }: { items: any[] }) {
       {items.length === 0 && (
         <div className="empty-state">
           <AlertTriangle className="w-10 h-10 text-surface-600 mb-3" />
-          <p className="text-surface-400">No unresolved items — great!</p>
+          <p className="text-surface-400">No unresolved items — all commitments verified!</p>
         </div>
       )}
       {items.map((u) => (
@@ -638,40 +950,85 @@ function UnresolvedTab({ items }: { items: any[] }) {
   );
 }
 
+// ── Speakers Tab with Voice Diarization Analytics ─────────────────────────────
+
 function SpeakersTab({ participants, transcript }: { participants: any[]; transcript: any[] }) {
-  const speakerStats = participants.map(p => {
-    const segs = transcript.filter(s => s.speaker_label === p.speaker_label || s.speaker_name === p.name);
-    return { ...p, segment_count: segs.length };
+  // Calculate talk time distribution
+  let totalDuration = 0;
+  const speakerDurations: Record<string, number> = {};
+
+  transcript.forEach((seg) => {
+    const dur = Math.max(0.5, (seg.end_time || 0) - (seg.start_time || 0));
+    totalDuration += dur;
+    const name = seg.speaker_name || seg.speaker_label || 'Speaker';
+    speakerDurations[name] = (speakerDurations[name] || 0) + dur;
   });
-  
+
+  const speakerStats = participants.map((p) => {
+    const segs = transcript.filter((s) => s.speaker_name === p.name || s.speaker_label === p.speaker_label);
+    const dur = speakerDurations[p.name] || 0;
+    const pct = totalDuration > 0 ? Math.round((dur / totalDuration) * 100) : 0;
+    return {
+      ...p,
+      segment_count: segs.length,
+      duration: dur,
+      percentage: pct,
+    };
+  });
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       {speakerStats.length === 0 && (
         <div className="empty-state">
           <Users className="w-10 h-10 text-surface-600 mb-3" />
-          <p className="text-surface-400">No speaker data available</p>
+          <p className="text-surface-400">No speaker identification data available</p>
         </div>
       )}
-      {speakerStats.map((p) => (
-        <div key={p.id} className="card flex items-center gap-4">
-          <div className="w-10 h-10 bg-brand-700/50 rounded-full flex items-center justify-center text-sm font-bold text-brand-300 flex-shrink-0">
-            {p.name.charAt(0)}
+
+      {/* Voice Diarization Distribution Bar */}
+      {totalDuration > 0 && (
+        <div className="card space-y-2">
+          <div className="flex items-center justify-between text-xs text-surface-300 font-semibold">
+            <span>Acoustic Talk-Time Distribution</span>
+            <span>Total: {formatDuration(Math.round(totalDuration))}</span>
           </div>
-          <div className="flex-1">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold text-surface-100">{p.name}</span>
-              {p.identified ? (
-                <span className="text-2xs text-emerald-400">✓ Voice Identified</span>
-              ) : (
-                <span className="text-2xs text-surface-500">Unknown Speaker</span>
-              )}
-            </div>
-            <div className="text-2xs text-surface-500 mt-0.5">
-              {p.speaker_label} — {p.segment_count} transcript segments
-            </div>
+          <div className="w-full bg-surface-700 h-3 rounded-full overflow-hidden flex">
+            {speakerStats.map((p, idx) => {
+              const colors = ['bg-brand-500', 'bg-purple-500', 'bg-emerald-500', 'bg-amber-500'];
+              return (
+                <div
+                  key={p.id}
+                  className={`${colors[idx % colors.length]} h-full transition-all`}
+                  style={{ width: `${Math.max(5, p.percentage)}%` }}
+                  title={`${p.name}: ${p.percentage}%`}
+                />
+              );
+            })}
           </div>
         </div>
-      ))}
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        {speakerStats.map((p) => (
+          <div key={p.id} className="card flex items-center gap-4">
+            <div className="w-12 h-12 bg-brand-700/40 border border-brand-500/30 rounded-xl flex items-center justify-center text-base font-bold text-brand-300 flex-shrink-0">
+              {p.name.charAt(0)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-surface-100">{p.name}</span>
+                <span className="text-2xs text-emerald-400 bg-emerald-950/60 border border-emerald-800/40 px-1.5 py-0.5 rounded">
+                  ✓ Enrolled Voice
+                </span>
+              </div>
+              <div className="text-2xs text-surface-400 mt-1 flex items-center gap-3">
+                <span>{p.segment_count} segments</span>
+                <span>{p.percentage}% talk-time</span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -39,34 +39,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-surface-950 flex">
+    <div className="min-h-screen bg-slate-50 flex">
       {/* Left panel — branding */}
-      <div className="hidden lg:flex flex-col w-[45%] bg-surface-900 border-r border-surface-800 p-12 relative overflow-hidden">
+      <div className="hidden lg:flex flex-col w-[45%] bg-gradient-to-br from-white via-slate-50 to-blue-50/40 border-r border-slate-200 p-12 relative overflow-hidden shadow-sm">
         {/* Background grid */}
-        <div className="absolute inset-0 opacity-5"
+        <div className="absolute inset-0 opacity-[0.03]"
           style={{
-            backgroundImage: `linear-gradient(to right, #64748b 1px, transparent 1px), linear-gradient(to bottom, #64748b 1px, transparent 1px)`,
+            backgroundImage: `linear-gradient(to right, #0f172a 1px, transparent 1px), linear-gradient(to bottom, #0f172a 1px, transparent 1px)`,
             backgroundSize: '32px 32px',
           }}
         />
         
         {/* Logo */}
         <div className="flex items-center gap-3 relative z-10">
-          <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center">
+          <div className="w-10 h-10 bg-brand-600 rounded-xl flex items-center justify-center shadow-sm">
             <Zap className="w-6 h-6 text-white" />
           </div>
           <div>
-            <div className="text-lg font-bold text-white tracking-tight">MeetGuard AI</div>
-            <div className="text-xs text-surface-500">Enterprise Intelligence Platform</div>
+            <div className="text-lg font-bold text-slate-900 tracking-tight">Memora AI</div>
+            <div className="text-xs text-brand-600 font-semibold tracking-wider">Enterprise Intelligence Platform</div>
           </div>
         </div>
         
         <div className="mt-16 relative z-10">
-          <h1 className="text-4xl font-bold text-white leading-tight">
+          <h1 className="text-4xl font-extrabold text-slate-900 leading-tight tracking-tight">
             From conversations<br />
             to <span className="text-gradient">commitments.</span>
           </h1>
-          <p className="mt-4 text-surface-400 text-lg leading-relaxed">
+          <p className="mt-4 text-slate-600 text-lg leading-relaxed">
             Transform enterprise meetings into verified decisions, accountable actions, and tracked outcomes — with full evidence trail.
           </p>
         </div>
@@ -82,32 +82,32 @@ export default function LoginPage() {
           ].map(({ dot, text }) => (
             <div key={text} className="flex items-center gap-3">
               <span className={`w-2 h-2 rounded-full ${dot} flex-shrink-0`} />
-              <span className="text-surface-300 text-sm">{text}</span>
+              <span className="text-slate-700 font-medium text-sm">{text}</span>
             </div>
           ))}
         </div>
 
         {/* Bottom tagline */}
-        <div className="mt-auto pt-8 relative z-10 border-t border-surface-700">
-          <p className="text-surface-500 text-sm italic">
+        <div className="mt-auto pt-8 relative z-10 border-t border-slate-200">
+          <p className="text-slate-500 text-sm italic">
             "Meetings should not end when the meeting ends."
           </p>
         </div>
       </div>
       
       {/* Right panel — login form */}
-      <div className="flex-1 flex items-center justify-center p-8">
-        <div className="w-full max-w-md space-y-6">
+      <div className="flex-1 flex items-center justify-center p-8 bg-white lg:bg-slate-50/50">
+        <div className="w-full max-w-md space-y-6 bg-white p-8 rounded-2xl border border-slate-200 shadow-card">
           <div className="lg:hidden flex items-center gap-3 mb-8">
-            <div className="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center">
+            <div className="w-9 h-9 bg-brand-600 rounded-xl flex items-center justify-center shadow-sm">
               <Zap className="w-5 h-5 text-white" />
             </div>
-            <div className="text-xl font-bold text-white">MeetGuard AI</div>
+            <div className="text-xl font-bold text-slate-900">Memora AI</div>
           </div>
 
           <div>
-            <h2 className="text-2xl font-bold text-surface-50">Sign in to your account</h2>
-            <p className="text-surface-400 text-sm mt-1">Enterprise Meeting Intelligence Platform</p>
+            <h2 className="text-2xl font-bold text-slate-900 tracking-tight">Sign in to your account</h2>
+            <p className="text-slate-500 text-sm mt-1">Enterprise Meeting Intelligence Platform</p>
           </div>
           
           <form

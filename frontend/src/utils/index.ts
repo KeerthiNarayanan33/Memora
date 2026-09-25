@@ -1,5 +1,4 @@
-// Utility functions
-import type { ActionStatus, Classification, GoalStatus } from '../types';
+import type { ActionStatus, Classification, GoalStatus, MeetingStatus } from '../types';
 import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -55,21 +54,37 @@ export function formatRelative(dateStr?: string): string {
   return formatDate(dateStr);
 }
 
-export function statusBadgeClass(status: ActionStatus): string {
+export function statusBadgeClass(status: ActionStatus | MeetingStatus | string): string {
   switch (status) {
-    case 'NEW': return 'badge-new';
-    case 'IN_PROGRESS': return 'badge-in-progress';
-    case 'COMPLETED': return 'badge-completed';
-    case 'OVERDUE': return 'badge-overdue';
-    case 'UNRESOLVED': return 'badge-unresolved';
-    case 'CARRIED_OVER': return 'badge-carried-over';
-    case 'CANCELLED': return 'badge-cancelled';
-    default: return 'badge-new';
+    case 'NEW':
+    case 'CREATED':
+    case 'AUDIO_UPLOADED':
+      return 'badge-new';
+    case 'IN_PROGRESS':
+    case 'PROCESSING':
+    case 'TRANSCRIBING':
+    case 'IDENTIFYING_SPEAKERS':
+    case 'ANALYZING':
+    case 'VALIDATING':
+      return 'badge-in-progress';
+    case 'COMPLETED':
+      return 'badge-completed';
+    case 'OVERDUE':
+    case 'FAILED':
+      return 'badge-overdue';
+    case 'UNRESOLVED':
+      return 'badge-unresolved';
+    case 'CARRIED_OVER':
+      return 'badge-carried-over';
+    case 'CANCELLED':
+      return 'badge-cancelled';
+    default:
+      return 'badge-new';
   }
 }
 
-export function statusLabel(status: ActionStatus): string {
-  return status.replace('_', ' ');
+export function statusLabel(status: ActionStatus | MeetingStatus | string): string {
+  return String(status).replace(/_/g, ' ');
 }
 
 export function classificationBadgeClass(c: Classification): string {

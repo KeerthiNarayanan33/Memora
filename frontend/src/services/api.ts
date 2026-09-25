@@ -3,7 +3,7 @@ import axios from 'axios';
 import type {
   User, Meeting, TranscriptSegment, Decision, ActionItem, UnresolvedItem,
   Goal, Speaker, DashboardStats, SearchResult, AIStatus, AnalyticsData,
-  ActionHistory, Participant
+  ActionHistory, Participant, ProviderStatus
 } from '../types';
 
 const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
@@ -121,6 +121,9 @@ export const meetingsApi = {
   
   getParticipants: (meetingId: string) =>
     api.get<Participant[]>(`/meetings/${meetingId}/participants`).then(r => r.data),
+
+  updateTranscriptSegment: (meetingId: string, segmentId: string, data: { speaker_name?: string; speaker_label?: string; text?: string }) =>
+    api.patch(`/meetings/${meetingId}/transcript/${segmentId}`, data).then(r => r.data),
 };
 
 // ── Actions ───────────────────────────────────────────────────────────────────
